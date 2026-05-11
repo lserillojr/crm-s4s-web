@@ -34,3 +34,22 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pwa (gerados em build)
+public/sw.js
+public/workbox-*.js
+public/worker-*.js
+public/sw.js.map
+public/workbox-*.js.map
+
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
+# vitest
+/coverage/
+
+# drizzle (introspect output regenerável)
+/drizzle/*.sql
+/drizzle/meta/
