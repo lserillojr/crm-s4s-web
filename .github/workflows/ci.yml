@@ -1,0 +1,123 @@
+# CI — roda em PR + push em main.
+#
+# Jobs:
+#  1. lint-typecheck-test: ESLint + tsc + Vitest + Playwright contra Postgres 16
+#     em service container (idem migrations CRM_S4S 001/011/012)
+#  2. build-docker: docker buildx multi-stage (não push em PR; valida Dockerfile)
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci_test
+          POSTGRES_PASSWORD: ci_test
+          POSTGRES_DB: ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://ci_test:ci_test@localhost:5432/ci_test?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply minimal schema CI DB
+        # Cria só as tabelas que o app referencia em healthz/queries fase 1.
+        # Schema completo vive em CRM_S4S/infra/migrations — aqui é stub.
+        run: |
+          PGPASSWORD=ci_test psql -h localhost -U ci_test -d ci_test <<'SQL'
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+            CREATE TABLE IF NOT EXISTS tenants (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              slug VARCHAR(100) NOT NULL UNIQUE,
+              name VARCHAR(255) NOT NULL,
+              chatwoot_account_id INTEGER NOT NULL UNIQUE,
+              chatwoot_api_token TEXT NOT NULL,
+              odoo_company_id INTEGER NOT NULL,
+              odoo_api_url TEXT NOT NULL,
+              odoo_api_key TEXT NOT NULL,
+              plan VARCHAR(20) NOT NULL DEFAULT 'basic',
+              active BOOLEAN NOT NULL DEFAULT true,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+            CREATE TABLE IF NOT EXISTS users (
+              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+              email VARCHAR(255) NOT NULL,
+              password_hash VARCHAR(255) NOT NULL,
+              created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+              updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+          SQL
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: pnpm e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push em PR)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: crm-s4s-web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
