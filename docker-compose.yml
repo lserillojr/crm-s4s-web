@@ -1,0 +1,36 @@
+# docker-compose.yml — Portainer stack crm-s4s-web (DEV/PROD).
+#
+# Deploy: Portainer → Stacks → Add → Web editor → cola este arquivo.
+# Env vars: configurar no Portainer UI (Environment section). Não commitar
+# valores reais — usar Portainer Secrets / .env.local.
+#
+# Reverse proxy externo (Caddy/Traefik no Hetzner) mapeia
+# dev-app.staff4solutions.com.br → crm-s4s-web:3000 via rede compartilhada.
+
+services:
+  crm-s4s-web:
+    image: ghcr.io/lserillojr/crm-s4s-web:${IMAGE_TAG:-latest}
+    container_name: crm-s4s-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?must be set}
+      AUTH_SECRET: ${AUTH_SECRET:-CHANGE_ME_SP2_FASE2}
+      AUTH_KEYCLOAK_ID: ${AUTH_KEYCLOAK_ID:-web-simples}
+      AUTH_KEYCLOAK_SECRET: ${AUTH_KEYCLOAK_SECRET:-}
+      AUTH_KEYCLOAK_ISSUER: ${AUTH_KEYCLOAK_ISSUER:-}
+      N8N_API_BASE_URL: ${N8N_API_BASE_URL:-}
+      N8N_PROVISION_API_KEY: ${N8N_PROVISION_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+    ports:
+      - "3010:3000" # bind host; reverse proxy externo aponta pra este
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q --spider http://localhost:3000/api/healthz || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
