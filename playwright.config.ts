@@ -1,12 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * Playwright config — E2E smoke fase 1.
- *
- * Em CI / dev local: webServer block sobe `pnpm dev` antes dos testes.
- * Em ambiente DEV remoto (smoke pos-deploy): setar E2E_BASE_URL pra
- * skipar webServer e bater direto na URL real.
- */
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 30000,
@@ -18,9 +11,14 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   projects: [
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        storageState: "tests/e2e/.auth/user.json",
+      },
+      dependencies: ["setup"],
     },
   ],
   webServer: process.env.E2E_BASE_URL
@@ -32,8 +30,11 @@ export default defineConfig({
         timeout: 180000,
         env: {
           DATABASE_URL:
-            process.env.DATABASE_URL ??
-            "postgres://stub:stub@localhost:5432/stub",
+            process.env.DATABASE_URL ?? "postgres://stub:stub@localhost:5432/stub",
+          E2E_AUTH_MOCK: "1",
+          AUTH_SECRET:
+            process.env.AUTH_SECRET ??
+            "test-secret-test-secret-test-secret-32",
         },
       },
 });

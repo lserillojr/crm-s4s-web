@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Smoke E2E SP2 fase 1.
+ * Smoke E2E SP2 fase 2.
  *
  * Cobre 3 fluxos críticos pos-deploy:
  * - Landing renderiza com CTAs principais
  * - /api/healthz responde (200 com db ok ou 503 com db error — ambos OK pro smoke)
- * - /login mostra estado fase 1 "coming soon" com botão disabled
+ * - /login mostra formulário de login (fase 2: botão Entrar com S4S ativo)
  */
 
 test("landing renderiza com CTA e links", async ({ page }) => {
@@ -35,10 +35,8 @@ test("/api/healthz responde (200 ou 503 sao validos no smoke fase 1)", async ({
   expect(body.checks.db).toMatch(/^(ok|error)$/);
 });
 
-test("/login mostra placeholder fase 1", async ({ page }) => {
+test("/login mostra formulário de login com botão ativo", async ({ page }) => {
   await page.goto("/login");
-  await expect(page.getByText(/Login coming soon/i)).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /Entrar.*em breve/i })
-  ).toBeDisabled();
+  await expect(page.getByTestId("login-keycloak")).toBeVisible();
+  await expect(page.getByTestId("login-keycloak")).toBeEnabled();
 });

@@ -46,6 +46,7 @@ public/workbox-*.js.map
 /test-results/
 /playwright-report/
 /playwright/.cache/
+tests/e2e/.auth/
 
 # vitest
 /coverage/
