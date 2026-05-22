@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const authMock = vi.fn();
-const redirectMock = vi.fn(() => {
+const redirectMock = vi.fn((_url: string) => {
   throw new Error("REDIRECT");
 });
 
