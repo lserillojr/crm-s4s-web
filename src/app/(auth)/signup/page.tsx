@@ -9,14 +9,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
+import { signIn } from "@/auth";
 
 export default function SignupPage() {
-  // Endpoint de auto-registro do realm Keycloak (registration habilitado).
-  const registrationUrl = env.AUTH_KEYCLOAK_ISSUER
-    ? `${env.AUTH_KEYCLOAK_ISSUER}/protocol/openid-connect/registrations` +
-      `?client_id=${env.AUTH_KEYCLOAK_ID ?? "web-simples"}` +
-      `&response_type=code&scope=openid`
-    : null;
+  // Auto-registro via Keycloak: `signIn` com `prompt=create` leva direto à
+  // tela de cadastro do realm (OIDC "Initiating User Registration"). O Auth.js
+  // monta redirect_uri/state corretamente — não montar a URL à mão.
+  const keycloakReady = Boolean(env.AUTH_KEYCLOAK_ISSUER);
+
+  async function criarConta() {
+    "use server";
+    await signIn("keycloak", { redirectTo: "/dashboard" }, { prompt: "create" });
+  }
 
   return (
     <Card>
@@ -25,10 +29,12 @@ export default function SignupPage() {
         <CardDescription>Comece a atender com IA em minutos</CardDescription>
       </CardHeader>
       <CardContent>
-        {registrationUrl ? (
-          <Button asChild className="w-full" data-testid="signup-keycloak">
-            <a href={registrationUrl}>Criar conta</a>
-          </Button>
+        {keycloakReady ? (
+          <form action={criarConta}>
+            <Button type="submit" className="w-full" data-testid="signup-keycloak">
+              Criar conta
+            </Button>
+          </form>
         ) : (
           <p className="text-sm text-muted-foreground" data-testid="signup-unavailable">
             Cadastro indisponível no momento. Tente novamente em instantes.

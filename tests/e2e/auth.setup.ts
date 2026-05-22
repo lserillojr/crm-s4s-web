@@ -36,19 +36,19 @@ setup("autentica via provider mock", async ({ request }) => {
   // Salva o storageState (cookies da sessão)
   await request.storageState({ path: authFile });
 
-  // Valida que o storageState tem pelo menos um cookie de sessão
+  // Gate real do login: o storageState precisa ter o cookie de sessão do
+  // Auth.js (`*session-token`) com valor NÃO-vazio. Só a presença do nome não
+  // basta — um cookie vazio significaria login não-autenticado.
   const state = JSON.parse(fs.readFileSync(authFile, "utf-8")) as {
-    cookies: Array<{ name: string }>;
+    cookies: Array<{ name: string; value: string }>;
   };
   const sessionCookie = state.cookies.find(
-    (c) =>
-      c.name.includes("session-token") ||
-      c.name.includes("authjs") ||
-      c.name.startsWith("next-auth")
+    (c) => c.name.includes("session-token") && c.value.length > 0
   );
-  if (!sessionCookie) {
-    throw new Error(
-      `Cookie de sessão não encontrado no storageState. Cookies presentes: ${state.cookies.map((c) => c.name).join(", ")}`
-    );
-  }
+  expect(
+    sessionCookie,
+    `Cookie de sessão (*session-token) ausente ou vazio no storageState. Cookies: ${state.cookies
+      .map((c) => c.name)
+      .join(", ")}`
+  ).toBeTruthy();
 });
