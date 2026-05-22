@@ -8,30 +8,29 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { signIn } from "@/auth";
 
 export default function LoginPage() {
+  async function entrar() {
+    "use server";
+    await signIn("keycloak", { redirectTo: "/dashboard" });
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Entrar na S4S</CardTitle>
-        <CardDescription>
-          Login coming soon — Sub-Projeto 2 fase 2 (Auth.js + Keycloak)
-        </CardDescription>
+        <CardDescription>Acesse seu painel de atendimento</CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-sm text-muted-foreground">
-          Esta é a fase 1 do scaffold. O login real será habilitado quando o
-          Keycloak (Sub-Projeto 1) estiver operacional.
-        </p>
+        <form action={entrar}>
+          <Button type="submit" className="w-full" data-testid="login-keycloak">
+            Entrar com S4S
+          </Button>
+        </form>
       </CardContent>
-      <CardFooter className="flex flex-col gap-2">
-        <Button className="w-full" disabled>
-          Entrar (em breve)
-        </Button>
-        <Link
-          href="/signup"
-          className="text-sm text-s4s-blue hover:underline"
-        >
+      <CardFooter>
+        <Link href="/signup" className="text-sm text-s4s-blue hover:underline">
           Criar conta
         </Link>
       </CardFooter>
