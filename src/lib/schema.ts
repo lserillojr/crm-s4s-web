@@ -49,7 +49,10 @@ export const tenants = pgTable("tenants", {
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 255 }).notNull(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+  passwordHash: varchar("password_hash", { length: 255 }),
+  authManagedBy: varchar("auth_managed_by", { length: 32 })
+    .notNull()
+    .default("legacy"),
   name: varchar("name", { length: 255 }),
   tenantId: uuid("tenant_id").references(() => tenants.id, {
     onDelete: "set null",
