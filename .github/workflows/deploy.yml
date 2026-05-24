@@ -3,9 +3,10 @@
 # Pré-requisitos (configurar antes do primeiro merge — handoff Lauri):
 #  - GH Secret PORTAINER_STACK_WEBHOOK (gerar em Portainer → Stacks → crm-s4s-web → Webhook)
 #  - GH Secret GITHUB_TOKEN (auto-disponível; scope write:packages incluso)
-#  - Stack `crm-s4s-web` criada no Portainer Hetzner com docker-compose.yml
+#  - Stack `crm-s4s-web` criada no Portainer Hetzner a partir do stack canonico
+#    crm-s4s-product/infraestrutura/dev/portainer/stacks/crm-s4s-web.yml (Swarm + Traefik)
 #  - DNS A `dev-app.staff4solutions.com.br` apontando pra Hetzner VPS
-#  - Reverse proxy externo (Caddy) com rota dev-app → crm-s4s-web:3000
+#  - Rota dev-app → crm-s4s-web:3000 ja vem nas deploy.labels do stack canonico (Traefik)
 
 name: Deploy
 

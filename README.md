@@ -67,7 +67,6 @@ crm-s4s-web/
 ├── public/icons/                   # PWA icons (placeholder #4076BB sólido)
 ├── scripts/generate-placeholder-icons.mjs
 ├── Dockerfile                      # multi-stage Node 20-alpine standalone
-├── docker-compose.yml              # Portainer stack
 ├── drizzle.config.ts
 ├── playwright.config.ts
 ├── vitest.config.ts
@@ -94,9 +93,9 @@ CI/CD: push em `main` → GitHub Actions builda Docker → push `ghcr.io/lserill
    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO crm_s4s_web_ro;
    ```
 2. **GitHub Secret** `PORTAINER_STACK_WEBHOOK` (Portainer → Stacks → crm-s4s-web → Webhooks → Generate)
-3. **Portainer stack** `crm-s4s-web` criada com `docker-compose.yml` + env vars
+3. **Portainer stack** `crm-s4s-web` criada a partir do stack canônico `crm-s4s-product/infraestrutura/dev/portainer/stacks/crm-s4s-web.yml` (Swarm + Traefik) + env vars na Environment
 4. **DNS** A record `dev-app.staff4solutions.com.br` → IP Hetzner
-5. **Reverse proxy** rota `dev-app` → `crm-s4s-web:3000`
+5. **Rota Traefik** `dev-app` → `crm-s4s-web:3000` já vem nas `deploy.labels` do stack canônico
 
 ## Arquitetura
 
