@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/auth.config";
 import { isProtectedPath } from "@/lib/auth/route-guard";
+
+// Monta um `auth` edge-safe a partir do config SEM DB (o `@/auth` completo
+// importa o client Postgres via callback signIn, que quebraria o bundle edge).
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname, origin } = req.nextUrl;
