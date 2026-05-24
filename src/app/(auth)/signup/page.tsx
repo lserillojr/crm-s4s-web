@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { env } from "@/lib/env";
 import { signIn } from "@/auth";
 
+// `keycloakReady` lê env de runtime; sem isto a página é pré-renderizada
+// estática em build (issuer ausente → "Cadastro indisponível" baked).
+export const dynamic = "force-dynamic";
+
 export default function SignupPage() {
   // Auto-registro via Keycloak: `signIn` com `prompt=create` leva direto à
   // tela de cadastro do realm (OIDC "Initiating User Registration"). O Auth.js

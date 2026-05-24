@@ -47,6 +47,6 @@ ENV PORT=3000
 # Healthcheck: 200 OU 503 são respostas válidas do endpoint
 # (DB pode estar degraded mas app está vivo); só status code != 2xx/5xx falha.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -q --spider http://localhost:3000/api/healthz || exit 1
+  CMD wget -q --spider http://127.0.0.1:3000/api/healthz || exit 1
 
 CMD ["node", "server.js"]

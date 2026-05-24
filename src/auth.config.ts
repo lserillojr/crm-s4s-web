@@ -49,6 +49,9 @@ if (useMock) {
 export const authConfig = {
   providers,
   secret: env.AUTH_SECRET,
+  // Atrás de proxy (Traefik) o Auth.js v5 precisa confiar no host encaminhado;
+  // sem isto dá UntrustedHost. A URL canônica vem do env AUTH_URL no deploy.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
   callbacks: {

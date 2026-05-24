@@ -28,14 +28,22 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
 });
 
-// Em test mode, permitir DATABASE_URL via setup file ao invés de exigir já.
-// Outros ambientes parse com erro estourado pra falhar cedo.
-function parseEnv() {
-  if (process.env.NODE_ENV === "test") {
-    return envSchema.partial({ DATABASE_URL: true }).parse(process.env);
+/**
+ * Parse de uma fonte arbitrária de env. Vars opcionais que chegam como string
+ * vazia (ex: `${N8N_API_BASE_URL:-}` no compose entrega `""`) viram `undefined`
+ * antes do zod — senão `z.string().url()`/`.min()` falham em `""` e quebram o
+ * boot/rotas (ZodError silencioso). Exportada pra teste.
+ */
+export function parseEnvFrom(source: Record<string, unknown>) {
+  const cleaned = Object.fromEntries(
+    Object.entries(source).map(([k, v]) => [k, v === "" ? undefined : v]),
+  );
+  // Em test mode, permitir DATABASE_URL via setup file ao invés de exigir já.
+  if (cleaned.NODE_ENV === "test") {
+    return envSchema.partial({ DATABASE_URL: true }).parse(cleaned);
   }
-  return envSchema.parse(process.env);
+  return envSchema.parse(cleaned);
 }
 
-export const env = parseEnv() as z.infer<typeof envSchema>;
+export const env = parseEnvFrom(process.env) as z.infer<typeof envSchema>;
 export type Env = z.infer<typeof envSchema>;
