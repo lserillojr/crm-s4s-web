@@ -34,8 +34,6 @@ export const tenants = pgTable("tenants", {
   odooApiUrl: text("odoo_api_url").notNull(),
   odooApiKey: text("odoo_api_key").notNull(),
   evolutionInstance: varchar("evolution_instance", { length: 100 }),
-  calcomApiKey: text("calcom_api_key"),
-  calcomEventTypeId: integer("calcom_event_type_id"),
   plan: varchar("plan", { length: 20 }).notNull().default("basic"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
