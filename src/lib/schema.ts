@@ -58,6 +58,7 @@ export const users = pgTable("users", {
     onDelete: "set null",
   }),
   role: varchar("role", { length: 32 }).notNull().default("owner"),
+  phoneNumber: varchar("phone_number", { length: 32 }),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   emailInvalid: boolean("email_invalid").notNull().default(false),
   onboardingState: jsonb("onboarding_state"),
