@@ -24,7 +24,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "missing_wizard_data" }, { status: 400 });
   }
 
-  const prior = await getOnboardingState(email);
+  let prior: Awaited<ReturnType<typeof getOnboardingState>> = null;
+  try {
+    prior = await getOnboardingState(email);
+  } catch {
+    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+  }
   const idempotencyKey = prior?.idempotencyKey ?? randomUUID();
 
   const origin = new URL(req.url).origin;
@@ -35,16 +40,27 @@ export async function POST(req: Request) {
     magicLinkRedirectUrl: `${origin}/dashboard`,
   });
 
-  const { status, body: n8nBody } = await n8nProvision(payload);
+  let result: Awaited<ReturnType<typeof n8nProvision>>;
+  try {
+    result = await n8nProvision(payload);
+  } catch {
+    return NextResponse.json({ error: "provision_unavailable" }, { status: 502 });
+  }
+  const { status, body: n8nBody } = result;
 
-  // 2xx = aceito/replay. Persiste o vínculo; senão propaga o erro do n8n.
+  // 2xx = aceito/replay. Persiste o vínculo (idempotency + audit) pra polling/resume.
   if (status === 200 || status === 202) {
-    await saveOnboardingState(email, {
-      idempotencyKey,
-      auditId: n8nBody.audit_id,
-      lastStatus: n8nBody.status,
-    });
-    return NextResponse.json(n8nBody, { status });
+    try {
+      await saveOnboardingState(email, {
+        idempotencyKey,
+        auditId: n8nBody.audit_id,
+        lastStatus: n8nBody.status,
+      });
+    } catch {
+      // n8n já aceitou; persistir falhou. NÃO derruba o request — o cliente
+      // precisa do audit_id pra pollar. Re-submit regenera a key se preciso.
+      console.error("[provision] saveOnboardingState falhou após 2xx do n8n");
+    }
   }
 
   return NextResponse.json(n8nBody, { status });

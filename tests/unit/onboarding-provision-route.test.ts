@@ -86,5 +86,27 @@ describe("POST /api/onboarding/provision", () => {
     const { POST } = await import("@/app/api/onboarding/provision/route");
     const resp = await POST(makeReq({ wizard: validWizard }));
     expect(resp.status).toBe(422);
+    expect(saveStateMock).not.toHaveBeenCalled();
+  });
+
+  it("502 quando o n8n está indisponível (n8nProvision lança)", async () => {
+    authMock.mockResolvedValue({ user: { email: "maria@teste.dev", name: "Maria" } });
+    provisionMock.mockRejectedValue(new Error("ECONNREFUSED"));
+    const { POST } = await import("@/app/api/onboarding/provision/route");
+    const resp = await POST(makeReq({ wizard: validWizard }));
+    expect(resp.status).toBe(502);
+    expect(saveStateMock).not.toHaveBeenCalled();
+  });
+
+  it("ainda devolve 202 + audit_id se o persist falhar após o n8n aceitar", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    authMock.mockResolvedValue({ user: { email: "maria@teste.dev", name: "Maria" } });
+    provisionMock.mockResolvedValue({ status: 202, body: { audit_id: "a1", status: "in_progress" } });
+    saveStateMock.mockRejectedValue(new Error("DB down"));
+    const { POST } = await import("@/app/api/onboarding/provision/route");
+    const resp = await POST(makeReq({ wizard: validWizard }));
+    expect(resp.status).toBe(202);
+    expect(await resp.json()).toMatchObject({ audit_id: "a1" });
+    errSpy.mockRestore();
   });
 });
