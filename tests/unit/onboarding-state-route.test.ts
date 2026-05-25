@@ -55,4 +55,22 @@ describe("/api/onboarding/state", () => {
     expect(resp.status).toBe(401);
     expect(saveStateMock).not.toHaveBeenCalled();
   });
+
+  it("GET 200 devolve state:null quando não há estado", async () => {
+    authMock.mockResolvedValue({ user: { email: "novo@teste.dev" } });
+    getStateMock.mockResolvedValue(null);
+    const { GET } = await import("@/app/api/onboarding/state/route");
+    const resp = await GET();
+    expect(resp.status).toBe(200);
+    expect(await resp.json()).toEqual({ state: null });
+  });
+
+  it("PUT 400 quando o body é JSON malformado (não salva)", async () => {
+    authMock.mockResolvedValue({ user: { email: "maria@teste.dev" } });
+    const { PUT } = await import("@/app/api/onboarding/state/route");
+    const req = new Request("http://t/api/onboarding/state", { method: "PUT", body: "not-json{" });
+    const resp = await PUT(req);
+    expect(resp.status).toBe(400);
+    expect(saveStateMock).not.toHaveBeenCalled();
+  });
 });

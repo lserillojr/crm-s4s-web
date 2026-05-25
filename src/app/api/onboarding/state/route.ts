@@ -13,15 +13,33 @@ export async function GET() {
   const session = await auth();
   const email = session?.user?.email;
   if (!email) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const state = await getOnboardingState(email);
-  return NextResponse.json({ state });
+  try {
+    const state = await getOnboardingState(email);
+    return NextResponse.json({ state });
+  } catch {
+    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+  }
 }
 
 export async function PUT(req: Request) {
   const session = await auth();
   const email = session?.user?.email;
   if (!email) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
-  const patch = (await req.json().catch(() => ({}))) as Partial<OnboardingState>;
-  const state = await saveOnboardingState(email, patch);
-  return NextResponse.json({ state });
+
+  // Body malformado → 400 (não tratar como patch vazio silencioso).
+  let patch: Partial<OnboardingState>;
+  try {
+    patch = (await req.json()) as Partial<OnboardingState>;
+  } catch {
+    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
+  }
+
+  // Erros do server-state (ex: user não encontrado) → 500 genérico, sem ecoar a
+  // mensagem (não vazar email/detalhe interno pro cliente).
+  try {
+    const state = await saveOnboardingState(email, patch);
+    return NextResponse.json({ state });
+  } catch {
+    return NextResponse.json({ error: "internal_error" }, { status: 500 });
+  }
 }
