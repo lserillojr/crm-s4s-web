@@ -60,7 +60,7 @@ export default function ConfirmStepPage() {
     setSubmitting(true);
     setSubmitError(null);
 
-    const { ok, status, result } = await submitProvision(data as never);
+    const { ok, status, result } = await submitProvision(data);
     if (!ok || !result?.audit_id) {
       setSubmitting(false);
       setSubmitError(
