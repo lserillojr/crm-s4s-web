@@ -32,31 +32,37 @@ export function useProvisioningStatus(
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const stoppedRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const poll = useCallback(async () => {
     if (!auditId) return;
     setLoading(true);
     try {
       const result = await fetchStatus(auditId);
+      if (!mountedRef.current) return;
       setStatus(result);
       setError(null);
       if (TERMINAL.has(result.status)) stoppedRef.current = true;
     } catch {
-      setError("Não consegui checar o status. Tentando de novo...");
+      if (mountedRef.current) setError("Não consegui checar o status. Tentando de novo...");
     } finally {
-      setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   }, [auditId]);
 
   useEffect(() => {
     if (!auditId) return;
+    mountedRef.current = true;
     stoppedRef.current = false;
     void poll();
     const timer = setInterval(() => {
       if (stoppedRef.current) return;
       void poll();
     }, intervalMs);
-    return () => clearInterval(timer);
+    return () => {
+      mountedRef.current = false;
+      clearInterval(timer);
+    };
   }, [auditId, intervalMs, poll]);
 
   return { status, error, loading, refresh: poll };
