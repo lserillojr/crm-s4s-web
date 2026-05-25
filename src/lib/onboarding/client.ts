@@ -19,11 +19,14 @@ export async function submitProvision(wizard: WizardData): Promise<SubmitProvisi
   return { ok: resp.ok, status: resp.status, result };
 }
 
-/** Busca o status atual do provisionamento. */
+/** Busca o status atual do provisionamento. Lança em HTTP não-ok (o hook de polling trata). */
 export async function fetchStatus(auditId: string): Promise<StatusResult> {
   const resp = await fetch(`/api/onboarding/status?audit_id=${encodeURIComponent(auditId)}`, {
     method: "GET",
   });
+  if (!resp.ok) {
+    throw new Error(`fetchStatus: HTTP ${resp.status}`);
+  }
   return (await resp.json()) as StatusResult;
 }
 
@@ -35,11 +38,20 @@ export async function loadServerState(): Promise<OnboardingState | null> {
   return json.state ?? null;
 }
 
-/** Grava (merge) o onboarding_state server-side. */
+/**
+ * Grava (merge) o onboarding_state server-side. Best-effort write-through: o
+ * mirror server-side é durabilidade secundária (o vínculo crítico audit/idempotency
+ * é gravado pelo route handler de provision), então engole o erro pra não gerar
+ * unhandled rejection no caller (`void saveServerState(...)`).
+ */
 export async function saveServerState(patch: Partial<OnboardingState>): Promise<void> {
-  await fetch("/api/onboarding/state", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(patch),
-  });
+  try {
+    await fetch("/api/onboarding/state", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+  } catch {
+    // best-effort — ignora falha de rede
+  }
 }

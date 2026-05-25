@@ -38,6 +38,11 @@ describe("onboarding client", () => {
     expect(res.status).toBe("success");
   });
 
+  it("fetchStatus lança quando a resposta é HTTP não-ok", async () => {
+    mockFetchOnce(502, { error: "status_unavailable" });
+    await expect(fetchStatus("a1")).rejects.toThrow(/HTTP 502/);
+  });
+
   it("loadServerState devolve o state (ou null)", async () => {
     mockFetchOnce(200, { state: { furthestCompletedStep: "kb" } });
     expect(await loadServerState()).toEqual({ furthestCompletedStep: "kb" });
