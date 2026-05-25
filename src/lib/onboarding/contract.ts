@@ -16,7 +16,7 @@ export interface ProvisionRequest {
     slug: string;
     vertical: string;
     company_name: string;
-    wa_provider: string;
+    wa_provider: "evolution" | "cloud_api";
     wa_phone_id: null;
     wa_phone_display: string;
     instagram_account_id: null;
@@ -39,12 +39,14 @@ export interface ProvisionResult {
   idempotency_replay?: boolean;
   magic_link?: string | null;
   tenant_id?: string | null;
+  created_at?: string;
 }
 
 /** Resposta do GET /onboarding/status. */
 export interface StatusResult {
   audit_id: string;
   status: ProvisionStatus;
+  started_at?: string;
   completed_steps: string[];
   current_step?: string | null;
   attempt_number?: number;
@@ -60,7 +62,7 @@ export interface StatusResult {
 /**
  * Normaliza um texto livre num slug `^[a-z0-9-]+$`. Remove acentos (NFD),
  * troca tudo que não é alfanumérico por `-`, colapsa e apara. Fallback
- * determinístico `mei-<6hex>` quando o resultado fica vazio (ex: só símbolos),
+ * de formato fixo `mei-<6hex>` quando o resultado fica vazio (ex: só símbolos),
  * pra nunca enviar slug inválido que o WF11 NODE 3 rejeitaria (400).
  */
 export function slugify(input: string): string {
@@ -75,7 +77,7 @@ export function slugify(input: string): string {
   return `mei-${rand}`;
 }
 
-interface BuildPayloadInput {
+export interface BuildPayloadInput {
   wizard: WizardData;
   user: { email: string; name: string | null };
   idempotencyKey: string;
@@ -107,6 +109,7 @@ export function buildProvisionPayload(input: BuildPayloadInput): ProvisionReques
       lgpd_disclaimer_text: null,
     },
     wizard_state: {
+      // Step 5 final = sempre "5_review" no contrato
       step_completed: "5_review",
       metadata: {
         instagram_connect: wizard.instagram.connect ?? false,
