@@ -37,4 +37,12 @@ describe("WizardIndex resume", () => {
     await expect(WizardIndex()).rejects.toThrow("REDIRECT:/wizard/whatsapp");
     expect(getStateMock).not.toHaveBeenCalled();
   });
+
+  it("erro no DB não quebra a página — cai no primeiro step", async () => {
+    authMock.mockResolvedValue({ user: { email: "m@t.dev" } });
+    getStateMock.mockRejectedValue(new Error("connection refused"));
+    const { default: WizardIndex } = await import("@/app/(onboarding)/wizard/page");
+    await expect(WizardIndex()).rejects.toThrow("REDIRECT:/wizard/whatsapp");
+    expect(redirectMock).not.toHaveBeenCalledWith(expect.stringContaining("provisioning"));
+  });
 });
