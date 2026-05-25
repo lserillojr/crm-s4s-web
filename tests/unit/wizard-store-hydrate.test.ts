@@ -28,4 +28,15 @@ describe("useWizardStore.hydrateFromServer", () => {
     useWizardStore.getState().hydrateFromServer({});
     expect(useWizardStore.getState().furthestCompletedStep).toBeNull();
   });
+
+  it("step parcial do server não apaga campos-irmãos já no store", () => {
+    useWizardStore.getState().setKb({ businessName: "Local", vertical: "beleza", about: "x".repeat(40) });
+    useWizardStore.getState().hydrateFromServer({
+      data: { ...wizardDefaults, kb: { businessName: "Server" } as never },
+    });
+    const s = useWizardStore.getState();
+    expect(s.data.kb.businessName).toBe("Server");
+    expect(s.data.kb.vertical).toBe("beleza"); // preservado
+    expect(s.data.kb.about).toHaveLength(40); // preservado
+  });
 });

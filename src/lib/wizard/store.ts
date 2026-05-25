@@ -99,7 +99,15 @@ export const useWizardStore = create<WizardState>()(
         set((s) => {
           if (!payload) return {};
           return {
-            data: payload.data ? { ...s.data, ...payload.data } : s.data,
+            data: payload.data
+              ? {
+                  whatsapp: { ...s.data.whatsapp, ...(payload.data.whatsapp ?? {}) },
+                  instagram: { ...s.data.instagram, ...(payload.data.instagram ?? {}) },
+                  calendar: { ...s.data.calendar, ...(payload.data.calendar ?? {}) },
+                  kb: { ...s.data.kb, ...(payload.data.kb ?? {}) },
+                  confirm: { ...s.data.confirm, ...(payload.data.confirm ?? {}) },
+                }
+              : s.data,
             furthestCompletedStep:
               payload.furthestCompletedStep !== undefined
                 ? payload.furthestCompletedStep
