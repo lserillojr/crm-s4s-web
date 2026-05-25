@@ -24,6 +24,7 @@ import {
   type ConfirmStepData,
   VERTICALS,
 } from "@/lib/wizard/schemas";
+import { submitProvision } from "@/lib/onboarding/client";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -41,6 +42,7 @@ export default function ConfirmStepPage() {
   const setConfirm = useWizardStore((s) => s.setConfirm);
   const markCompleted = useWizardStore((s) => s.markCompleted);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const form = useForm<ConfirmStepData>({
     resolver: zodResolver(confirmStepSchema),
@@ -56,10 +58,19 @@ export default function ConfirmStepPage() {
     setConfirm(values);
     markCompleted("confirm");
     setSubmitting(true);
-    // Submit real virá em SP2 fase 2 (Auth.js OIDC + POST onboarding endpoint).
-    // Por enquanto, mock submit → vai pra dashboard.
-    await new Promise((r) => setTimeout(r, 600));
-    router.push("/dashboard");
+    setSubmitError(null);
+
+    const { ok, status, result } = await submitProvision(data as never);
+    if (!ok || !result?.audit_id) {
+      setSubmitting(false);
+      setSubmitError(
+        status === 422
+          ? "Esse negócio já parece ter uma conta. Tente outro nome ou faça login."
+          : "Não consegui ativar agora. Tente de novo em instantes.",
+      );
+      return;
+    }
+    router.push(`/wizard/provisioning?audit_id=${encodeURIComponent(result.audit_id)}`);
   };
 
   return (
@@ -147,6 +158,12 @@ export default function ConfirmStepPage() {
                     </FormItem>
                   )}
                 />
+
+                {submitError ? (
+                  <p role="alert" className="text-sm text-s4s-magenta">
+                    {submitError}
+                  </p>
+                ) : null}
 
                 <WizardActions
                   currentSlug="confirm"

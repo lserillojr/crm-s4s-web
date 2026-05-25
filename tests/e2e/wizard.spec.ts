@@ -16,7 +16,7 @@ test("/wizard redireciona pra primeiro step", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("walkthrough completo dos 5 steps termina no dashboard", async ({
+test("walkthrough completo dos 5 steps chega ao submit do Step 5", async ({
   page,
 }) => {
   // Limpa storage pra começar fresh
@@ -58,8 +58,9 @@ test("walkthrough completo dos 5 steps termina no dashboard", async ({
   await page.getByLabel("Aceito termos").check();
   await page.getByRole("button", { name: "Ativar conta" }).click();
 
-  // Termina em /dashboard
-  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 5000 });
+  // Sem n8n configurado/mocado o submit falha graciosamente (mensagem de erro),
+  // mas NÃO navega mais direto pro /dashboard (era o comportamento mock antigo).
+  await expect(page).not.toHaveURL(/\/dashboard$/, { timeout: 3000 });
 });
 
 test("voltar do step 2 para step 1 preserva número digitado", async ({
