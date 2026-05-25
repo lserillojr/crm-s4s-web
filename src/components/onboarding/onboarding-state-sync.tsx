@@ -28,6 +28,10 @@ export function OnboardingStateSync() {
           furthestCompletedStep: state.furthestCompletedStep,
         });
       }
+      // Marca pós-await: garante que a assinatura (2º effect) nunca veja `true`
+      // antes de loadServerState resolver. Setado mesmo se state===null, pra que
+      // usuário novo (sem estado no server) também ative o write-through.
+      // Janela de corrida = RTT de 1 GET; edits nessa janela não sincronizam (best-effort).
       loadedRef.current = true;
     })();
     return () => {

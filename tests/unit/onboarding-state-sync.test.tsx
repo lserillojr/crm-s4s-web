@@ -11,6 +11,7 @@ vi.mock("@/lib/onboarding/client", () => ({
 
 import { OnboardingStateSync } from "@/components/onboarding/onboarding-state-sync";
 import { useWizardStore } from "@/lib/wizard/store";
+import { wizardDefaults } from "@/lib/wizard/schemas";
 
 describe("OnboardingStateSync", () => {
   beforeEach(() => {
@@ -40,8 +41,26 @@ describe("OnboardingStateSync", () => {
     act(() => vi.advanceTimersByTime(900));
     await waitFor(() =>
       expect(saveServerStateMock).toHaveBeenCalledWith(
-        expect.objectContaining({ furthestCompletedStep: "whatsapp" }),
+        expect.objectContaining({
+          furthestCompletedStep: "whatsapp",
+          data: expect.any(Object),
+        }),
       ),
+    );
+  });
+
+  it("hidrata os dados do wizard vindos do server (sobrevive a limpar localStorage)", async () => {
+    loadServerStateMock.mockResolvedValue({
+      furthestCompletedStep: "kb",
+      data: {
+        ...wizardDefaults,
+        kb: { businessName: "Salão Z", vertical: "beleza", about: "z".repeat(40) },
+      },
+    });
+    render(<OnboardingStateSync />);
+    await waitFor(() => expect(loadServerStateMock).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(useWizardStore.getState().data.kb.businessName).toBe("Salão Z"),
     );
   });
 
