@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 
 afterEach(() => {
@@ -26,6 +26,8 @@ function view(
 }
 
 describe("ProvisioningView", () => {
+  beforeEach(() => onRefresh.mockClear());
+
   it("in_progress: spinner + mensagem de preparação", () => {
     view({ audit_id: "a1", status: "in_progress", completed_steps: ["db_insert"] });
     expect(screen.getByText(/Preparando sua conta/i)).toBeInTheDocument();
@@ -51,7 +53,7 @@ describe("ProvisioningView", () => {
       magic_link: "https://m",
     });
     expect(screen.getByText(/Tudo pronto/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ir pro painel/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ir pro painel/i })).toHaveAttribute("href", "/dashboard");
   });
 
   it("failed/partial_failure: mensagem amigável (user_message)", () => {

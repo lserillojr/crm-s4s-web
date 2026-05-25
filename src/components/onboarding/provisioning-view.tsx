@@ -60,9 +60,9 @@ export function ProvisioningView({
             <li>✅ WhatsApp conectado</li>
             <li>✅ IA ativa e atendendo</li>
           </ul>
-          <Link href="/dashboard">
-            <Button className="w-full bg-s4s-blue hover:bg-s4s-blue/90">Ir pro painel</Button>
-          </Link>
+          <Button asChild className="w-full bg-s4s-blue hover:bg-s4s-blue/90">
+            <Link href="/dashboard">Ir pro painel</Link>
+          </Button>
         </CardContent>
       </Card>
     );
