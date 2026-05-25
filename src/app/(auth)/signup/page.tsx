@@ -23,7 +23,7 @@ export default function SignupPage() {
 
   async function criarConta() {
     "use server";
-    await signIn("keycloak", { redirectTo: "/dashboard" }, { prompt: "create" });
+    await signIn("keycloak", { redirectTo: "/wizard" }, { prompt: "create" });
   }
 
   return (
