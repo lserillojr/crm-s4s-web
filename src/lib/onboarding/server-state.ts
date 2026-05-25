@@ -18,7 +18,7 @@ export interface OnboardingState {
 }
 
 /** Lê o onboarding_state do user (keyed por lower(email)). null se ausente. */
-export async function getOnboardingState(email: string): Promise<OnboardingState | null> {
+export async function getOnboardingState(email: string | null | undefined): Promise<OnboardingState | null> {
   const key = email?.trim();
   if (!key) return null;
   const rows = (await db.execute(sql`
@@ -40,10 +40,17 @@ export async function saveOnboardingState(
   if (!key) throw new Error("saveOnboardingState: email ausente — não há chave de identidade.");
   const current = (await getOnboardingState(key)) ?? {};
   const merged: OnboardingState = { ...current, ...patch, updatedAt: new Date().toISOString() };
-  await db.execute(sql`
+  // JSON.stringify produz string; o cast ::jsonb é emitido como SQL literal logo
+  // após o parâmetro bound ($N) — forma correta p/ drizzle-orm/postgres-js. NÃO
+  // mover o ::jsonb pra dentro da expressão (quebraria o binding).
+  const updated = (await db.execute(sql`
     UPDATE users
        SET onboarding_state = ${JSON.stringify(merged)}::jsonb, updated_at = now()
      WHERE lower(email) = lower(${key})
-  `);
+    RETURNING id
+  `)) as unknown as Array<{ id: string }>;
+  if (!updated[0]) {
+    throw new Error(`saveOnboardingState: user não encontrado para email "${key}"`);
+  }
   return merged;
 }

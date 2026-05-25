@@ -30,10 +30,18 @@ describe("server-state", () => {
   it("saveOnboardingState faz merge (UPDATE) e devolve o estado mesclado", async () => {
     executeMock
       .mockResolvedValueOnce([{ onboarding_state: { furthestCompletedStep: "kb" } }]) // SELECT atual
-      .mockResolvedValueOnce(undefined); // UPDATE
+      .mockResolvedValueOnce([{ id: "u1" }]); // UPDATE ... RETURNING id
     const out = await saveOnboardingState("maria@teste.dev", { auditId: "a1", lastStatus: "in_progress" });
     expect(out).toMatchObject({ furthestCompletedStep: "kb", auditId: "a1", lastStatus: "in_progress" });
+    expect(out.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(executeMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("saveOnboardingState lança quando o user não existe (UPDATE 0 rows)", async () => {
+    executeMock
+      .mockResolvedValueOnce([]) // SELECT atual (sem row)
+      .mockResolvedValueOnce([]); // UPDATE ... RETURNING id (0 rows)
+    await expect(saveOnboardingState("ghost@teste.dev", { auditId: "a1" })).rejects.toThrow(/não encontrado/i);
   });
 
   it("saveOnboardingState lança sem email", async () => {
