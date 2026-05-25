@@ -42,6 +42,12 @@ export interface ProvisionResult {
   created_at?: string;
 }
 
+/** Envelope de transporte de uma chamada ao n8n (status HTTP + body parseado). */
+export interface N8nResponse<T = unknown> {
+  status: number;
+  body: T;
+}
+
 /** Resposta do GET /onboarding/status. */
 export interface StatusResult {
   audit_id: string;

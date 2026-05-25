@@ -56,4 +56,12 @@ describe("n8n-client", () => {
     const { n8nProvision } = await import("@/lib/onboarding/n8n-client");
     await expect(n8nProvision({} as never)).rejects.toThrow(/N8N_API_BASE_URL/);
   });
+
+  it("lança se N8N_PROVISION_API_KEY ausente (com URL válida)", async () => {
+    vi.doMock("@/lib/env", () => ({
+      env: { N8N_API_BASE_URL: "https://n8n.example/webhook", N8N_PROVISION_API_KEY: undefined },
+    }));
+    const { n8nProvision } = await import("@/lib/onboarding/n8n-client");
+    await expect(n8nProvision({} as never)).rejects.toThrow(/N8N_PROVISION_API_KEY/);
+  });
 });

@@ -1,11 +1,10 @@
 import { env } from "@/lib/env";
-import type { ProvisionRequest } from "@/lib/onboarding/contract";
-
-/** Resultado bruto de uma chamada ao n8n (status HTTP + body JSON). */
-export interface N8nResponse<T = unknown> {
-  status: number;
-  body: T;
-}
+import type {
+  ProvisionRequest,
+  ProvisionResult,
+  StatusResult,
+  N8nResponse,
+} from "@/lib/onboarding/contract";
 
 function baseUrl(): string {
   const base = env.N8N_API_BASE_URL;
@@ -27,23 +26,23 @@ function apiKey(): string {
 /** POST /onboarding/provision. Não lança em erro HTTP — devolve status pro caller mapear. */
 export async function n8nProvision(
   payload: ProvisionRequest,
-): Promise<N8nResponse<Record<string, unknown>>> {
+): Promise<N8nResponse<ProvisionResult>> {
   const resp = await fetch(`${baseUrl()}/onboarding/provision`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-API-KEY": apiKey() },
     body: JSON.stringify(payload),
     cache: "no-store",
   });
-  return { status: resp.status, body: (await resp.json().catch(() => ({}))) as Record<string, unknown> };
+  return { status: resp.status, body: (await resp.json().catch(() => ({}))) as ProvisionResult };
 }
 
-/** GET /onboarding/status?audit_id=X. */
-export async function n8nStatus(auditId: string): Promise<N8nResponse<Record<string, unknown>>> {
+/** GET /onboarding/status?audit_id=X. Não lança em erro HTTP — devolve status pro caller mapear. */
+export async function n8nStatus(auditId: string): Promise<N8nResponse<StatusResult>> {
   const url = `${baseUrl()}/onboarding/status?audit_id=${encodeURIComponent(auditId)}`;
   const resp = await fetch(url, {
     method: "GET",
     headers: { "X-API-KEY": apiKey() },
     cache: "no-store",
   });
-  return { status: resp.status, body: (await resp.json().catch(() => ({}))) as Record<string, unknown> };
+  return { status: resp.status, body: (await resp.json().catch(() => ({}))) as StatusResult };
 }
