@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProgressHeader } from "@/components/wizard/progress-header";
+import { OnboardingStateSync } from "@/components/onboarding/onboarding-state-sync";
 
 export default function OnboardingLayout({
   children,
@@ -8,6 +9,7 @@ export default function OnboardingLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-s4s-gray-light">
+      <OnboardingStateSync />
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between p-4">
           <Link
