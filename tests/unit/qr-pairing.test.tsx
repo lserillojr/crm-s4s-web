@@ -30,4 +30,10 @@ describe("QrPairing", () => {
     await userEvent.click(screen.getByRole("button", { name: /Atualizar QR/i }));
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
+
+  it("botão fica desabilitado e troca o texto enquanto refreshing", () => {
+    render(<QrPairing qrCodeUrl="data:image/png;base64,AAAA" onRefresh={vi.fn()} refreshing={true} />);
+    const btn = screen.getByRole("button", { name: /Atualizando/i });
+    expect(btn).toBeDisabled();
+  });
 });

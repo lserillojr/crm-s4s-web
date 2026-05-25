@@ -52,7 +52,13 @@ export function QrPairing({
             </p>
           )}
         </div>
-        <Button type="button" variant="ghost" onClick={onRefresh} disabled={refreshing}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-busy={refreshing}
+        >
           {refreshing ? "Atualizando..." : "Atualizar QR"}
         </Button>
         <p className="text-xs text-muted-foreground">O código expira em ~5 min</p>
