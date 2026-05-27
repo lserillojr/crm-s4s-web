@@ -28,5 +28,6 @@ export function mapSession(session: Session, token: JWT): Session {
   session.user.tenantId = (token.tenantId as string | null) ?? null;
   session.user.role = (token.role as string) ?? "owner";
   session.user.phoneNumber = token.phoneNumber as string | undefined;
+  session.user.sub = (token.sub as string | undefined) ?? undefined;
   return session;
 }
