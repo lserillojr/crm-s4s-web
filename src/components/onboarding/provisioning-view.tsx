@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { QrPairing } from "@/components/onboarding/qr-pairing";
+import { SsoLaunchers } from "@/components/sso/sso-launchers";
 import type { StatusResult } from "@/lib/onboarding/contract";
 
 /**
@@ -60,6 +61,7 @@ export function ProvisioningView({
             <li>✅ WhatsApp conectado</li>
             <li>✅ IA ativa e atendendo</li>
           </ul>
+          <SsoLaunchers variant="card" />
           <Button asChild className="w-full bg-s4s-blue hover:bg-s4s-blue/90">
             <Link href="/dashboard">Ir pro painel</Link>
           </Button>
