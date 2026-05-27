@@ -7,6 +7,7 @@ import {
   getIntegrationHealth,
   type IntegrationHealth,
 } from "@/lib/integrations/get-integration-health";
+import { SsoLaunchers } from "@/components/sso/sso-launchers";
 
 export default async function DashboardLayout({
   children,
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
             S4S
           </Link>
           <nav className="flex items-center gap-4 text-sm">
+            <SsoLaunchers variant="nav" />
             <Link href="/dashboard" className="text-s4s-blue hover:underline">
               Dashboard
             </Link>
