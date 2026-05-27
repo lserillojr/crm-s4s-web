@@ -17,9 +17,21 @@ function stripTrailingSlash(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-function clean(value: string | undefined): string | null {
+/**
+ * Normaliza um base url vindo de env var: trim + exige URL http(s) absoluta.
+ * Valor ausente/vazio OU malformado (ex: `localhost`, `not-a-url`, path
+ * relativo) vira `null` — o launcher degrada pra desabilitado/omitido em vez
+ * de gerar um href silenciosamente quebrado.
+ */
+function cleanBase(value: string | undefined): string | null {
   const v = (value ?? "").trim();
-  return v.length > 0 ? v : null;
+  if (v.length === 0) return null;
+  try {
+    const parsed = new URL(v);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? v : null;
+  } catch {
+    return null;
+  }
 }
 
 export function chatwootSsoUrl(baseUrl: string): string {
@@ -32,8 +44,8 @@ export function odooSsoUrl(baseUrl: string): string {
 
 export function getSsoTargets(): SsoTargets {
   // Acesso direto a process.env.NEXT_PUBLIC_* — o Next inlineia no build do client.
-  const chatwootBase = clean(process.env.NEXT_PUBLIC_CHATWOOT_URL);
-  const odooBase = clean(process.env.NEXT_PUBLIC_ODOO_URL);
+  const chatwootBase = cleanBase(process.env.NEXT_PUBLIC_CHATWOOT_URL);
+  const odooBase = cleanBase(process.env.NEXT_PUBLIC_ODOO_URL);
   return {
     chatwoot: chatwootBase ? chatwootSsoUrl(chatwootBase) : null,
     odoo: odooBase ? odooSsoUrl(odooBase) : null,

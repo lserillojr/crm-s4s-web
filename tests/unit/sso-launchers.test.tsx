@@ -20,6 +20,8 @@ describe("SsoLaunchers", () => {
     expect(odoo).toHaveAttribute("href", both.odoo);
     expect(chat).toHaveAttribute("target", "_blank");
     expect(chat).toHaveAttribute("rel", "noopener noreferrer");
+    expect(odoo).toHaveAttribute("target", "_blank");
+    expect(odoo).toHaveAttribute("rel", "noopener noreferrer");
   });
 
   it("card: env var ausente vira botao desabilitado (sem link)", () => {

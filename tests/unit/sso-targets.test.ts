@@ -41,4 +41,10 @@ describe("sso-targets", () => {
       odoo: "https://dev-backoffice.example.com/web/login",
     });
   });
+
+  it("getSsoTargets devolve null para base url malformada (sem protocolo http/s)", () => {
+    vi.stubEnv("NEXT_PUBLIC_CHATWOOT_URL", "localhost");
+    vi.stubEnv("NEXT_PUBLIC_ODOO_URL", "ftp://x.com");
+    expect(getSsoTargets()).toEqual({ chatwoot: null, odoo: null });
+  });
 });

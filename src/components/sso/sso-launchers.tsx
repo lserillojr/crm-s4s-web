@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquare, Briefcase } from "lucide-react";
+import { MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSsoTargets, type SsoTargets } from "@/lib/sso-targets";
 
@@ -11,7 +11,7 @@ type Item = {
   key: keyof SsoTargets;
   href: string | null;
   label: string;
-  icon: typeof MessageSquare;
+  icon: LucideIcon;
 };
 
 /**
