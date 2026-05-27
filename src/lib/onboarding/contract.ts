@@ -11,7 +11,7 @@ export type ProvisionStatus =
 /** Body do POST /onboarding/provision (contrato Story 9.6). */
 export interface ProvisionRequest {
   idempotency_key: string;
-  user: { email: string; name: string; password_hash: null };
+  user: { email: string; name: string; password_hash: null; sub: string };
   tenant: {
     slug: string;
     vertical: string;
@@ -85,7 +85,7 @@ export function slugify(input: string): string {
 
 export interface BuildPayloadInput {
   wizard: WizardData;
-  user: { email: string; name: string | null };
+  user: { email: string; name: string | null; sub?: string | null };
   idempotencyKey: string;
   magicLinkRedirectUrl: string;
 }
@@ -99,7 +99,7 @@ export function buildProvisionPayload(input: BuildPayloadInput): ProvisionReques
 
   return {
     idempotency_key: idempotencyKey,
-    user: { email: user.email, name: user.name ?? "", password_hash: null },
+    user: { email: user.email, name: user.name ?? "", password_hash: null, sub: user.sub ?? "" },
     tenant: {
       slug: slugify(businessName),
       vertical: wizard.kb.vertical ?? "outro",
