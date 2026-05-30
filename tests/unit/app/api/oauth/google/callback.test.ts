@@ -128,4 +128,19 @@ describe("GET /api/oauth/google/callback", () => {
     const res = await GET(req("code=c1&state=zzz") as never);
     expect(res.headers.get("location")).not.toMatch(/javascript:/);
   });
+
+  it("WIZARD_TOKEN_KEY ausente: não persiste token e redireciona com error=internal", async () => {
+    delete process.env.WIZARD_TOKEN_KEY;
+    cookieJar.set("gcal_oauth_state", "abc");
+    cookieJar.set("gcal_oauth_return_to", "/wizard/calendar");
+    vi.mocked(auth).mockResolvedValue({ user: { tenantId: "t-1" } } as never);
+    vi.mocked(exchangeCodeForTokens).mockResolvedValue({ refresh_token: "rt", access_token: "at", expires_in: 3600 });
+    vi.mocked(listCalendars).mockResolvedValue([{ id: "primary", summary: "Maria", primary: true }]);
+    vi.mocked(createTestEvent).mockResolvedValue({ eventId: "evt-1" });
+
+    const res = await GET(req("code=c1&state=abc") as never);
+
+    expect(saveEncryptedToken).not.toHaveBeenCalled();
+    expect(res.headers.get("location")).toMatch(/error=internal/);
+  });
 });

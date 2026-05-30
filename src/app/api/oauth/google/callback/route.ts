@@ -76,7 +76,10 @@ export async function GET(req: NextRequest) {
   } catch {
     return back({ error: "event_create_failed" });
   }
-  // Deleta best-effort; falha aqui só vira warning
+  // Deleta best-effort; falha aqui só vira warning.
+  // NOTE: setTimeout não dispara em runtime serverless (Vercel free) — função é
+  // congelada após response. Aceitável: evento fica na agenda do MEI até GC ou
+  // próxima reconexão. Risco = cosmético, não vaza dado.
   setTimeout(() => {
     deleteEvent(tokens.access_token, primary.id, evt.eventId).catch(() => {});
   }, 5_000);
