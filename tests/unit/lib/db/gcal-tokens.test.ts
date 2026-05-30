@@ -56,9 +56,11 @@ describe("getTenantCalendarInfo", () => {
       revoked: false,
     });
     const [sql] = client.query.mock.calls[0]!;
-    expect(sql).not.toMatch(/refresh_token_enc/);
+    // Comentário: o SELECT toca refresh_token_enc só pra IS NOT NULL — nunca expõe
+    // o conteúdo bytea fora do banco. O estado "connected" segue o token, não o calendar_id.
+    expect(sql).toMatch(/google_calendar_refresh_token_enc IS NOT NULL AS has_token/i);
     expect(sql).toMatch(/google_calendar_id/);
-    expect(sql).toMatch(/IS NOT NULL.*has_token/i);
+    expect(sql).not.toMatch(/pgp_sym_decrypt/); // garante que NÃO decripta no app
   });
 
   it("retorna connected=false quando tenant não tem token", async () => {

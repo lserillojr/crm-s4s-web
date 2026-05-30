@@ -47,7 +47,7 @@ export interface TenantCalendarInfo {
 export async function getTenantCalendarInfo(client: QueryRunner, tenantId: string): Promise<TenantCalendarInfo> {
   const { rows } = await client.query(
     `SELECT google_calendar_id,
-            google_calendar_id IS NOT NULL AS has_token,
+            google_calendar_refresh_token_enc IS NOT NULL AS has_token,
             gcal_revoked_at
        FROM tenants
       WHERE id = $1`,
