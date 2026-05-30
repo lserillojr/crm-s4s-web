@@ -10,4 +10,8 @@ Object.assign(process.env, {
   NODE_ENV: "test",
   DATABASE_URL:
     process.env.DATABASE_URL ?? "postgres://test:test@localhost:5432/test",
+  // Rotas Story 7.8 (start/callback OAuth Google) chamam getOrigin(req) que tenta
+  // process.env.AUTH_URL ?? req.nextUrl.origin. Os testes passam Request cru (sem
+  // .nextUrl) — precisamos do AUTH_URL stub aqui pra evitar TypeError.
+  AUTH_URL: process.env.AUTH_URL ?? "https://app.example.com",
 });

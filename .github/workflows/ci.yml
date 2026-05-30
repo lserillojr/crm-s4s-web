@@ -55,6 +55,9 @@ jobs:
       - name: Apply minimal schema CI DB
         # Cria só as tabelas que o app referencia em healthz/queries fase 1.
         # Schema completo vive em CRM_S4S/infra/migrations — aqui é stub.
+        # Colunas extras refletem migrations 023 (gcal encrypted) e 024
+        # (integration health timestamps) do CRM_S4S — necessárias pro
+        # SSR da /settings/integracoes não estourar no E2E.
         run: |
           PGPASSWORD=ci_test psql -h localhost -U ci_test -d ci_test <<'SQL'
             CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -69,6 +72,13 @@ jobs:
               odoo_api_key TEXT NOT NULL,
               plan VARCHAR(20) NOT NULL DEFAULT 'basic',
               active BOOLEAN NOT NULL DEFAULT true,
+              google_calendar_id TEXT,
+              google_calendar_refresh_token_enc BYTEA,
+              gcal_revoked_at TIMESTAMPTZ,
+              gcal_last_used_at TIMESTAMPTZ,
+              evolution_instance TEXT,
+              wa_status VARCHAR(20),
+              wa_last_inbound_at TIMESTAMPTZ,
               created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
               updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
             );
