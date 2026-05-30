@@ -70,7 +70,7 @@ export const instagramStepDefaults: InstagramStepData = {
 /* ---------- Step 3: Calendar ---------- */
 
 export const calendarStepSchema = z.object({
-  connect: z.boolean(),
+  connect: z.boolean(),                     // legacy, mantém pra compat tests
   // Fuso: BR tem 4 timezones. Default São Paulo cobre ~85% MEI.
   timezone: z.enum([
     "America/Sao_Paulo",
@@ -78,6 +78,12 @@ export const calendarStepSchema = z.object({
     "America/Recife",
     "America/Belem",
   ]),
+  // novos pra OAuth real — opcionais pra não quebrar testes legados que
+  // só passam connect+timezone; defaults aplicados em calendarStepDefaults.
+  connected: z.boolean().optional(),
+  calendarId: z.string().nullable().optional(),
+  calendarName: z.string().nullable().optional(),
+  skipped: z.boolean().optional(),
 });
 
 export type CalendarStepData = z.infer<typeof calendarStepSchema>;
@@ -85,6 +91,10 @@ export type CalendarStepData = z.infer<typeof calendarStepSchema>;
 export const calendarStepDefaults: CalendarStepData = {
   connect: true,
   timezone: "America/Sao_Paulo",
+  connected: false,
+  calendarId: null,
+  calendarName: null,
+  skipped: false,
 };
 
 /* ---------- Step 4: KB / Seu negócio ---------- */
