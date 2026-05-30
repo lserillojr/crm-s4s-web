@@ -35,7 +35,7 @@ export async function POST(req: Request) {
   const origin = new URL(req.url).origin;
   const payload = buildProvisionPayload({
     wizard: body.wizard,
-    user: { email, name: session.user.name ?? null },
+    user: { email, name: session.user.name ?? null, sub: session.user.sub ?? null },
     idempotencyKey,
     magicLinkRedirectUrl: `${origin}/dashboard`,
   });

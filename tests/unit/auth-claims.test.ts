@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { mapJwtClaims, mapSession } from "@/lib/auth/claims";
+import type { Session } from "next-auth";
+import type { JWT } from "next-auth/jwt";
+
+function baseSession(): Session {
+  return { user: { name: "MEI", email: "mei@x.dev" }, expires: "" } as Session;
+}
 
 describe("mapJwtClaims", () => {
   it("copia tenant_id/role/phone_number da fonte pro token no primeiro login", () => {
@@ -45,5 +51,16 @@ describe("mapSession", () => {
     const out = mapSession({ user: {} } as any, {} as any);
     expect(out.user.tenantId).toBeNull();
     expect(out.user.role).toBe("owner");
+  });
+
+  it("expõe o sub do token na sessão (identidade Keycloak)", () => {
+    const token = { sub: "db635b6f-78f3-4e00-827f-b5f1dfb14975" } as JWT;
+    const s = mapSession(baseSession(), token);
+    expect(s.user.sub).toBe("db635b6f-78f3-4e00-827f-b5f1dfb14975");
+  });
+
+  it("sub ausente no token vira undefined (não quebra)", () => {
+    const s = mapSession(baseSession(), {} as JWT);
+    expect(s.user.sub).toBeUndefined();
   });
 });

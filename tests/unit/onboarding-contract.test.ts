@@ -33,7 +33,7 @@ describe("buildProvisionPayload", () => {
   it("mapeia o wizard pro contrato (campos âncora)", () => {
     const p = buildProvisionPayload(base);
     expect(p.idempotency_key).toBe(base.idempotencyKey);
-    expect(p.user).toEqual({ email: "maria@teste.dev", name: "Maria Silva", password_hash: null });
+    expect(p.user).toEqual({ email: "maria@teste.dev", name: "Maria Silva", password_hash: null, sub: "" });
     expect(p.tenant.slug).toBe("salao-maria");
     expect(p.tenant.vertical).toBe("beleza");
     expect(p.tenant.company_name).toBe("Salão Maria");
@@ -63,5 +63,15 @@ describe("buildProvisionPayload", () => {
     expect(p.tenant.wa_phone_id).toBeNull();
     expect(p.tenant.instagram_account_id).toBeNull();
     expect(p.tenant.google_calendar_refresh_token).toBeNull();
+  });
+
+  it("propaga o sub do Keycloak no user", () => {
+    const p = buildProvisionPayload({ ...base, user: { email: "x@y.dev", name: "X", sub: "kc-sub-123" } });
+    expect(p.user.sub).toBe("kc-sub-123");
+  });
+
+  it("sub ausente vira string vazia (Worker faz soft-fail)", () => {
+    const p = buildProvisionPayload({ ...base, user: { email: "x@y.dev", name: "X" } });
+    expect(p.user.sub).toBe("");
   });
 });
