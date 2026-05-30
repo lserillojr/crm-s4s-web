@@ -102,6 +102,9 @@ export default function CalendarStepPage() {
         })
         .catch(() => setState("error"));
     }
+  // setCalendar é stable ref do Zustand selector; form.getValues() lê o ref atual
+  // do RHF — nenhum risco de stale closure aqui. Effect roda apenas quando o
+  // ?connected= ou ?error= muda na URL.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 

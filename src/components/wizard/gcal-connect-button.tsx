@@ -46,10 +46,14 @@ export function GcalConnectButton({
   if (state === "error") {
     return (
       <div className="space-y-3">
-        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm">
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="rounded-md border border-red-300 bg-red-50 p-3 text-sm"
+        >
           🚨 {mapGoogleError(errorCode ?? "internal")}
         </div>
-        <Button type="button" asChild>
+        <Button asChild>
           <a href={startHref}>Tentar de novo</a>
         </Button>
         <Button type="button" variant="link" onClick={onSkip}>
@@ -62,10 +66,13 @@ export function GcalConnectButton({
   if (state === "skipped") {
     return (
       <div className="space-y-3">
-        <div className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm">
+        <div
+          aria-live="polite"
+          className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm"
+        >
           ⚠️ Sua IA vai pedir pro seu atendente confirmar os agendamentos manualmente.
         </div>
-        <Button type="button" asChild>
+        <Button asChild>
           <a href={startHref}>Conectar agora</a>
         </Button>
       </div>
@@ -75,7 +82,7 @@ export function GcalConnectButton({
   // idle
   return (
     <div className="space-y-3">
-      <Button type="button" asChild>
+      <Button asChild>
         <a href={startHref}>Conectar Google Calendar</a>
       </Button>
       <Button type="button" variant="link" onClick={onSkip}>
