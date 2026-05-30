@@ -4,10 +4,20 @@ import crypto from "node:crypto";
 import { auth } from "@/auth";
 import { buildGoogleAuthUrl } from "@/lib/oauth/google";
 
+/**
+ * Origem canônica pra construir URLs de redirect. `req.url` dentro do container
+ * resolve pra `http://0.0.0.0:3000/...` (proxy reverso não reescreve), o que
+ * vaza no Location: do Response.redirect. AUTH_URL é o env já usado pelo
+ * Auth.js v5 — reaproveitamos como source of truth.
+ */
+function getOrigin(req: NextRequest): string {
+  return process.env.AUTH_URL ?? req.nextUrl.origin;
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.tenantId) {
-    return Response.redirect(new URL("/login?next=/wizard/calendar", req.url));
+    return Response.redirect(new URL("/login?next=/wizard/calendar", getOrigin(req)));
   }
 
   const url = new URL(req.url);

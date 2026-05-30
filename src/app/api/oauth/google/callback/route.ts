@@ -24,8 +24,19 @@ function safeReturnTo(value: string | undefined): string {
   return value;
 }
 
+/**
+ * Origem canônica pra construir URLs de redirect. `req.url` dentro do container
+ * resolve pra `http://0.0.0.0:3000/...` (proxy reverso não reescreve), o que
+ * vaza no Location: do Response.redirect. AUTH_URL é o env já usado pelo
+ * Auth.js v5 — reaproveitamos como source of truth.
+ */
+function getOrigin(req: NextRequest): string {
+  return process.env.AUTH_URL ?? req.nextUrl.origin;
+}
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
+  const origin = getOrigin(req);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
   const cookieStore = cookies();
@@ -36,7 +47,7 @@ export async function GET(req: NextRequest) {
   cookieStore.delete("gcal_oauth_return_to");
 
   const back = (params: Record<string, string>) => {
-    const u = new URL(returnTo, url);
+    const u = new URL(returnTo, origin);
     Object.entries(params).forEach(([k, v]) => u.searchParams.set(k, v));
     return Response.redirect(u);
   };
@@ -47,7 +58,7 @@ export async function GET(req: NextRequest) {
 
   const session = await auth();
   if (!session?.user?.tenantId) {
-    return Response.redirect(new URL("/login", url));
+    return Response.redirect(new URL("/login", origin));
   }
 
   let tokens: Awaited<ReturnType<typeof exchangeCodeForTokens>>;
