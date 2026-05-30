@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -19,6 +20,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { WizardActions } from "@/components/wizard/wizard-actions";
+import {
+  GcalConnectButton,
+  type GcalConnectState,
+} from "@/components/wizard/gcal-connect-button";
 import { useWizardStore } from "@/lib/wizard/store";
 import {
   calendarStepSchema,
@@ -33,25 +38,87 @@ const TIMEZONE_OPTIONS = [
   { value: "America/Belem", label: "Belém (GMT-3) — Pará/Amapá" },
 ] as const;
 
+function deriveCalendarName(calId: string | null): string | null {
+  if (!calId) return null;
+  return calId === "primary" ? "Calendário principal" : calId;
+}
+
 export default function CalendarStepPage() {
   const router = useRouter();
+  const search = useSearchParams();
   const stored = useWizardStore((s) => s.data.calendar);
   const setCalendar = useWizardStore((s) => s.setCalendar);
   const markCompleted = useWizardStore((s) => s.markCompleted);
+
+  const [state, setState] = useState<GcalConnectState>(() => {
+    if (stored.connected) return "connected";
+    if (stored.skipped) return "skipped";
+    return "idle";
+  });
+  const [calendarName, setCalendarName] = useState<string | null>(
+    stored.calendarName ?? null
+  );
+  const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
 
   const form = useForm<CalendarStepData>({
     resolver: zodResolver(calendarStepSchema),
     defaultValues: {
       connect: stored.connect ?? true,
       timezone: stored.timezone ?? "America/Sao_Paulo",
+      connected: stored.connected ?? false,
+      calendarId: stored.calendarId ?? null,
+      calendarName: stored.calendarName ?? null,
+      skipped: stored.skipped ?? false,
     },
   });
 
+  // Pós-callback: lê ?connected=1 ou ?error=...
+  useEffect(() => {
+    const error = search.get("error");
+    const connected = search.get("connected");
+    if (error) {
+      setState("error");
+      setErrorCode(error);
+      return;
+    }
+    if (connected === "1") {
+      fetch("/api/tenant/me")
+        .then((r) => r.json())
+        .then((info: { calendarId: string | null; connected: boolean }) => {
+          if (info.connected) {
+            const calId =
+              info.calendarId ?? search.get("calendar_id") ?? "primary";
+            const name = deriveCalendarName(calId);
+            setCalendar({
+              ...form.getValues(),
+              connected: true,
+              calendarId: calId,
+              calendarName: name,
+              skipped: false,
+            });
+            setCalendarName(name);
+            setState("connected");
+          }
+        })
+        .catch(() => setState("error"));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
   const onSubmit = (values: CalendarStepData) => {
-    setCalendar(values);
+    setCalendar({
+      ...values,
+      connected: state === "connected",
+      skipped: state === "skipped",
+    });
     markCompleted("calendar");
     const next = nextStepSlug("calendar");
     if (next) router.push(`/wizard/${next}`);
+  };
+
+  const onSkip = () => {
+    setState("skipped");
+    setCalendar({ ...form.getValues(), connected: false, skipped: true });
   };
 
   return (
@@ -62,32 +129,12 @@ export default function CalendarStepPage() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="connect"
-              render={({ field }) => (
-                <FormItem className="rounded-md border p-3">
-                  <label className="flex cursor-pointer items-start gap-3">
-                    <input
-                      type="checkbox"
-                      checked={field.value}
-                      onChange={(e) => field.onChange(e.target.checked)}
-                      className="mt-1 h-4 w-4"
-                      aria-label="Conectar Google Calendar"
-                    />
-                    <span className="text-sm">
-                      <span className="font-medium">
-                        Conectar Google Calendar
-                      </span>
-                      <span className="block text-muted-foreground">
-                        Quando o cliente pergunta &quot;que horas você
-                        atende?&quot;, a IA olha sua agenda e oferece horários
-                        que você está livre.
-                      </span>
-                    </span>
-                  </label>
-                </FormItem>
-              )}
+            <GcalConnectButton
+              state={state}
+              calendarName={calendarName}
+              errorCode={errorCode}
+              onSkip={onSkip}
+              returnTo="/wizard/calendar"
             />
 
             <FormField
