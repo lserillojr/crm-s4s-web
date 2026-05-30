@@ -106,6 +106,7 @@ export function WhatsAppQrModal({
 
         {state.kind === "ready" && (
           <div className="space-y-3 text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element -- data:image/png;base64 não se beneficia de next/image */}
             <img src={state.qrcode} alt="QR code WhatsApp" className="mx-auto h-64 w-64" />
             <p className="font-mono text-lg">{state.pairingCode}</p>
             <p className="text-xs text-muted-foreground">
