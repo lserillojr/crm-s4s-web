@@ -92,8 +92,8 @@ export default function ConfirmStepPage() {
                 label="Provider"
                 value={
                   data.whatsapp.provider === "cloud_api"
-                    ? "Cloud API"
-                    : "QR Code (Evolution)"
+                    ? "WhatsApp Oficial"
+                    : "Pareamento por QR"
                 }
               />
               <Row

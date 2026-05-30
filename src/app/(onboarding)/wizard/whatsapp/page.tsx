@@ -122,7 +122,7 @@ export default function WhatsappStepPage() {
                         className="mt-1"
                       />
                       <span className="text-sm">
-                        <span className="font-medium">Escanear QR Code</span>
+                        <span className="font-medium">Pareamento por QR Code</span>
                         <span className="block text-muted-foreground">
                           Mais rápido — pronto em segundos. Recomendado.
                         </span>
@@ -139,7 +139,7 @@ export default function WhatsappStepPage() {
                       />
                       <span className="text-sm">
                         <span className="font-medium">
-                          WhatsApp Cloud API (oficial)
+                          WhatsApp Oficial (Meta)
                         </span>
                         <span className="block text-muted-foreground">
                           Mais robusto, mas leva ~5 dias pra aprovação Meta.
