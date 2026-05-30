@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { signOut } from "@/auth";
+import { signOut, auth } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { IntegrationHealthBanner } from "@/components/integrations/integration-health-banner";
+import { getPool } from "@/lib/db/pool";
+import {
+  getIntegrationHealth,
+  type IntegrationHealth,
+} from "@/lib/integrations/get-integration-health";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -10,6 +16,16 @@ export default function DashboardLayout({
   async function sair() {
     "use server";
     await signOut({ redirectTo: "/login" });
+  }
+
+  const session = await auth();
+  let health: IntegrationHealth | null = null;
+  if (session?.user?.tenantId) {
+    try {
+      health = await getIntegrationHealth(getPool(), session.user.tenantId);
+    } catch {
+      health = null;
+    }
   }
 
   return (
@@ -34,7 +50,10 @@ export default function DashboardLayout({
           </nav>
         </div>
       </header>
-      <main className="container py-8">{children}</main>
+      <main className="container py-8">
+        {health && <IntegrationHealthBanner health={health} />}
+        {children}
+      </main>
     </div>
   );
 }
