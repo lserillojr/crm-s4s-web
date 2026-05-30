@@ -11,6 +11,9 @@ export async function GET(req: NextRequest) {
   }
 
   const url = new URL(req.url);
+  // returnTo é armazenado no cookie SEM sanitização. A validação (path-relative,
+  // sem javascript:, sem host externo) é responsabilidade do callback handler
+  // antes de fazer o Response.redirect. Open-redirect aqui = na callback.
   const returnTo = url.searchParams.get("returnTo") ?? "/wizard/calendar";
 
   const state = crypto.randomBytes(32).toString("hex");
