@@ -50,13 +50,21 @@ export async function exchangeCodeForTokens(code: string): Promise<GoogleTokens>
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: body.toString(),
   });
-  const json = (await res.json()) as { error?: string; error_description?: string } & GoogleTokens;
+  let json: { error?: string; error_description?: string } & Partial<GoogleTokens>;
+  try {
+    json = (await res.json()) as typeof json;
+  } catch {
+    throw new Error(`google_token_error: http_${res.status}_non_json`);
+  }
   if (json.error) {
     throw new Error(
       `google_token_error: ${json.error}${json.error_description ? `: ${json.error_description}` : ""}`,
     );
   }
-  return json;
+  if (!res.ok || !json.access_token) {
+    throw new Error(`google_token_error: http_${res.status}_no_token`);
+  }
+  return json as GoogleTokens;
 }
 
 export interface GoogleCalendar {
@@ -103,18 +111,26 @@ export async function createTestEvent(
   return { eventId: json.id };
 }
 
+/**
+ * Deleta um evento. Rejeita com `google_event_delete_failed: <status>` quando a API
+ * retorna HTTP de erro — o caller decide se silencia (`.catch(() => {})` no fluxo do
+ * verification event do callback) ou propaga (testes/smokes diretos).
+ */
 export async function deleteEvent(
   accessToken: string,
   calendarId: string,
   eventId: string,
 ): Promise<void> {
-  await fetch(
+  const res = await fetch(
     `${GOOGLE_API_BASE}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
     {
       method: "DELETE",
       headers: { authorization: `Bearer ${accessToken}` },
     },
   );
+  if (!res.ok && res.status !== 410) {
+    throw new Error(`google_event_delete_failed: ${res.status}`);
+  }
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -130,12 +146,10 @@ const ERROR_MESSAGES: Record<string, string> = {
   internal: "Algo deu errado por aqui. Tente de novo em alguns segundos.",
 };
 
+const INTERNAL_ERROR = ERROR_MESSAGES.internal as string;
+
 export function mapGoogleError(code: string): string {
-  return (
-    ERROR_MESSAGES[code] ??
-    ERROR_MESSAGES["internal"] ??
-    "Algo deu errado por aqui. Tente de novo em alguns segundos."
-  );
+  return ERROR_MESSAGES[code] ?? INTERNAL_ERROR;
 }
 
 function requireEnv(name: string): string {

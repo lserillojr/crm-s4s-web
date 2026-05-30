@@ -84,10 +84,15 @@ describe("listCalendars", () => {
     expect(cals[0]!.id).toBe("primary");
     expect(cals).toHaveLength(3);
   });
+
+  it("lança erro com status HTTP quando a API rejeita", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response("Unauthorized", { status: 401 }));
+    await expect(listCalendars("at-bad")).rejects.toThrow(/google_list_calendars_failed: 401/);
+  });
 });
 
-describe("createTestEvent / deleteEvent", () => {
-  it("createTestEvent cria evento e retorna id", async () => {
+describe("createTestEvent", () => {
+  it("cria evento e retorna id", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ id: "evt-123" }))
     );
@@ -95,13 +100,30 @@ describe("createTestEvent / deleteEvent", () => {
     expect(result.eventId).toBe("evt-123");
   });
 
-  it("deleteEvent faz DELETE no path correto", async () => {
+  it("lança erro com status HTTP quando a criação falha", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response("Forbidden", { status: 403 }));
+    await expect(createTestEvent("at-abc", "primary")).rejects.toThrow(/google_event_create_failed: 403/);
+  });
+});
+
+describe("deleteEvent", () => {
+  it("faz DELETE no path correto", async () => {
     const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 204 }));
     await deleteEvent("at-abc", "primary", "evt-123");
     expect(fetchSpy).toHaveBeenCalledWith(
       "https://www.googleapis.com/calendar/v3/calendars/primary/events/evt-123",
       expect.objectContaining({ method: "DELETE" })
     );
+  });
+
+  it("aceita 410 Gone como sucesso (evento já deletado)", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 410 }));
+    await expect(deleteEvent("at-abc", "primary", "evt-gone")).resolves.toBeUndefined();
+  });
+
+  it("lança erro quando a API rejeita com status != 410", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response("Forbidden", { status: 403 }));
+    await expect(deleteEvent("at-bad", "primary", "evt-1")).rejects.toThrow(/google_event_delete_failed: 403/);
   });
 });
 
