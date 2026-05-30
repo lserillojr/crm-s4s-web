@@ -13,7 +13,7 @@ function mockPool(row: Record<string, unknown> | null) {
 describe("getIntegrationHealth", () => {
   it("retorna shape vazio quando tenant não existe", async () => {
     const pool = mockPool(null);
-    // @ts-expect-error pool é stub
+    // pool é stub
     const result = await getIntegrationHealth(pool, "tenant-inexistente");
     expect(result.google.level).toBe("unconnected");
     expect(result.whatsapp.level).toBe("unconnected");
@@ -30,7 +30,7 @@ describe("getIntegrationHealth", () => {
       wa_status: null,
       wa_last_inbound_at: null,
     });
-    // @ts-expect-error pool é stub
+    // pool é stub
     const result = await getIntegrationHealth(pool, "tenant-novo");
     expect(result.google).toEqual({
       level: "unconnected",
@@ -58,7 +58,7 @@ describe("getIntegrationHealth", () => {
       wa_status: "connected",
       wa_last_inbound_at: fresh,
     });
-    // @ts-expect-error pool é stub
+    // pool é stub
     const result = await getIntegrationHealth(pool, "tenant-ativo", now);
     expect(result.google.level).toBe("ok");
     expect(result.google.calendarId).toBe("primary");
@@ -77,23 +77,24 @@ describe("getIntegrationHealth", () => {
       wa_status: "connected",
       wa_last_inbound_at: new Date(),
     });
-    // @ts-expect-error pool é stub
+    // pool é stub
     const result = await getIntegrationHealth(pool, "t");
     expect(result.google.level).toBe("error");
   });
 
   it("SELECT é executado com tenantId como parâmetro", async () => {
     const pool = mockPool(null);
-    // @ts-expect-error pool é stub
+    // pool é stub
     await getIntegrationHealth(pool, "tenant-X");
     expect(pool.query).toHaveBeenCalledWith(expect.any(String), ["tenant-X"]);
   });
 
   it("SELECT lê coluna evolution_instance (não instance_name — schema real DEV)", async () => {
     const pool = mockPool(null);
-    // @ts-expect-error pool é stub
+    // pool é stub
     await getIntegrationHealth(pool, "t");
-    const sql = pool.query.mock.calls[0][0] as string;
+    const firstCall = pool.query.mock.calls[0];
+    const sql = (firstCall ? firstCall[0] : "") as string;
     expect(sql).toMatch(/evolution_instance/);
     expect(sql).not.toMatch(/\binstance_name\b/);
   });

@@ -60,7 +60,7 @@ export async function getIntegrationHealth(
     };
   }
 
-  const row = rows[0];
+  const row = rows[0] as Record<string, unknown>;
   const revokedAt = (row.gcal_revoked_at as Date | null) ?? null;
   const lastUsedAt = (row.gcal_last_used_at as Date | null) ?? null;
   const hasRefreshToken = Boolean(row.has_refresh_token);

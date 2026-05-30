@@ -23,6 +23,9 @@ export default function DashboardLayout({
             <Link href="/dashboard" className="text-s4s-blue hover:underline">
               Dashboard
             </Link>
+            <Link href="/settings/integracoes" className="text-s4s-blue hover:underline">
+              Integrações
+            </Link>
             <form action={sair}>
               <Button type="submit" variant="ghost" size="sm" data-testid="logout">
                 Sair

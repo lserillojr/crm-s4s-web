@@ -4,8 +4,9 @@ interface QueryRunner {
 
 export async function getGlobalConfig(pool: QueryRunner, key: string): Promise<string | null> {
   const { rows } = await pool.query(`SELECT value FROM global_config WHERE key = $1`, [key]);
-  if (rows.length === 0) return null;
-  return (rows[0].value as string | null) ?? null;
+  const first = rows[0];
+  if (!first) return null;
+  return (first.value as string | null) ?? null;
 }
 
 export async function getRequiredGlobalConfig(pool: QueryRunner, key: string): Promise<string> {
