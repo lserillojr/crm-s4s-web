@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,7 +43,7 @@ function deriveCalendarName(calId: string | null): string | null {
   return calId === "primary" ? "Calendário principal" : calId;
 }
 
-export default function CalendarStepPage() {
+function CalendarStepInner() {
   const router = useRouter();
   const search = useSearchParams();
   const stored = useWizardStore((s) => s.data.calendar);
@@ -172,5 +172,22 @@ export default function CalendarStepPage() {
         </Form>
       </CardContent>
     </Card>
+  );
+}
+
+export default function CalendarStepPage() {
+  return (
+    <Suspense
+      fallback={
+        <Card>
+          <CardHeader>
+            <CardTitle>IA pode marcar reuniões na sua agenda?</CardTitle>
+          </CardHeader>
+          <CardContent>Carregando…</CardContent>
+        </Card>
+      }
+    >
+      <CalendarStepInner />
+    </Suspense>
   );
 }
