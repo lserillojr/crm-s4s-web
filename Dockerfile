@@ -25,6 +25,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # DATABASE_URL stub para o build (zod parse não falhar);
 # em runtime o env real é injetado pelo Portainer/docker-compose.
 ENV DATABASE_URL=postgres://stub:stub@localhost:5432/stub
+# URLs públicas dos launchers SSO. Next inlineia NEXT_PUBLIC_* no bundle no build,
+# então PRECISAM chegar como build-arg — injetar em runtime não tem efeito.
+# Ausentes => sso-targets retorna null => botões desabilitados/omitidos.
+ARG NEXT_PUBLIC_CHATWOOT_URL
+ARG NEXT_PUBLIC_ODOO_URL
+ENV NEXT_PUBLIC_CHATWOOT_URL=${NEXT_PUBLIC_CHATWOOT_URL}
+ENV NEXT_PUBLIC_ODOO_URL=${NEXT_PUBLIC_ODOO_URL}
 RUN pnpm build
 
 FROM node:20-alpine AS runner

@@ -70,4 +70,17 @@ describe("ProvisioningView", () => {
     view(null);
     expect(screen.getByText(/Carregando/i)).toBeInTheDocument();
   });
+
+  it("success: mostra os launchers SSO (atendimento + backoffice)", () => {
+    view({
+      audit_id: "a1",
+      status: "success",
+      completed_steps: [],
+      tenant_id: "t1",
+    });
+    // Sem env var no ambiente de teste, os launchers aparecem como botoes
+    // (desabilitados) mas os rotulos estao presentes.
+    expect(screen.getByText(/Abrir meu atendimento/i)).toBeInTheDocument();
+    expect(screen.getByText(/Abrir meu backoffice/i)).toBeInTheDocument();
+  });
 });
