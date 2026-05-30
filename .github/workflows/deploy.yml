@@ -1,12 +1,11 @@
-# Deploy — push em main dispara build + push GHCR + trigger Portainer webhook.
+# CI/CD → Hetzner (SSH + Swarm) — mesmo padrão de crm-s4s-ai / crm-s4s-painel.
+# Push em main → build + push GHCR → docker service update via SSH no Swarm DEV.
 #
-# Pré-requisitos (configurar antes do primeiro merge — handoff Lauri):
-#  - GH Secret PORTAINER_STACK_WEBHOOK (gerar em Portainer → Stacks → crm-s4s-web → Webhook)
-#  - GH Secret GITHUB_TOKEN (auto-disponível; scope write:packages incluso)
-#  - Stack `crm-s4s-web` criada no Portainer Hetzner a partir do stack canonico
-#    crm-s4s-product/infraestrutura/dev/portainer/stacks/crm-s4s-web.yml (Swarm + Traefik)
-#  - DNS A `dev-app.staff4solutions.com.br` apontando pra Hetzner VPS
-#  - Rota dev-app → crm-s4s-web:3000 ja vem nas deploy.labels do stack canonico (Traefik)
+# Secrets necessários (compartilhados com as outras APIs — mesmo host Swarm):
+#  - SSH_HOST / SSH_USER / SSH_PRIVATE_KEY (deploy key hetzner_deploy)
+#  - GITHUB_TOKEN (auto-disponível; scope write:packages incluso)
+# Repository variables (não-secretas; inlinadas no build pelo Next):
+#  - NEXT_PUBLIC_CHATWOOT_URL / NEXT_PUBLIC_ODOO_URL
 
 name: Deploy
 
@@ -18,6 +17,10 @@ on:
 concurrency:
   group: deploy
   cancel-in-progress: false # nao cancela deploy em andamento
+
+env:
+  IMAGE: ghcr.io/lserillojr/crm-s4s-web
+  SERVICE: crm-s4s-web_crm-s4s-web
 
 jobs:
   build-push-deploy:
@@ -44,8 +47,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/lserillojr/crm-s4s-web:latest
-            ghcr.io/lserillojr/crm-s4s-web:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
           # URLs públicas dos launchers SSO — Next inlineia no build (ver Dockerfile).
           # Valores em repository variables (não-secretos); HML/PROD podem sobrescrever via Environments.
           build-args: |
@@ -54,15 +57,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trigger Portainer stack update
-        run: |
-          if [ -z "${{ secrets.PORTAINER_STACK_WEBHOOK }}" ]; then
-            echo "::warning::PORTAINER_STACK_WEBHOOK ainda nao configurado — skip deploy trigger"
-            echo "Imagem foi pushada pra GHCR mas Portainer nao foi notificado."
-            echo "Configure o secret e re-rode este workflow (workflow_dispatch)."
-            exit 0
-          fi
-          curl -fsS -X POST "${{ secrets.PORTAINER_STACK_WEBHOOK }}" \
-            -H "Content-Type: application/json" \
-            -d '{"image_tag":"${{ github.sha }}"}'
-          echo "Portainer webhook acionado pra puxar imagem nova"
+      - name: Deploy → Swarm via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            docker service update \
+              --image ${{ env.IMAGE }}:${{ github.sha }} \
+              --with-registry-auth \
+              ${{ env.SERVICE }}
+
+            echo "✅ Deploy concluído: ${{ github.sha }}"
+            docker service ps ${{ env.SERVICE }} --no-trunc | head -5
