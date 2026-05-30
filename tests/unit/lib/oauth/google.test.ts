@@ -112,6 +112,7 @@ describe("mapGoogleError", () => {
     expect(mapGoogleError("token_exchange_failed")).toMatch(/Google/);
     expect(mapGoogleError("insufficient_scope")).toMatch(/permiss/i);
     expect(mapGoogleError("event_create_failed")).toMatch(/evento|teste/i);
+    expect(mapGoogleError("list_calendars_failed")).toMatch(/listar|calendário/i);
     expect(mapGoogleError("unknown_error_code")).toBeTruthy(); // fallback genérico
   });
 });
