@@ -37,6 +37,10 @@ interface WizardState {
   markCompleted: (stepSlug: string) => void;
   reset: () => void;
   setHydrated: (v: boolean) => void;
+  hydrateFromServer: (payload?: {
+    data?: WizardData;
+    furthestCompletedStep?: string | null;
+  }) => void;
 }
 
 const STORAGE_KEY = "s4s-wizard-v1";
@@ -91,6 +95,25 @@ export const useWizardStore = create<WizardState>()(
           furthestCompletedStep: null,
         }),
       setHydrated: (v) => set({ hydrated: v }),
+      hydrateFromServer: (payload) =>
+        set((s) => {
+          if (!payload) return {};
+          return {
+            data: payload.data
+              ? {
+                  whatsapp: { ...s.data.whatsapp, ...(payload.data.whatsapp ?? {}) },
+                  instagram: { ...s.data.instagram, ...(payload.data.instagram ?? {}) },
+                  calendar: { ...s.data.calendar, ...(payload.data.calendar ?? {}) },
+                  kb: { ...s.data.kb, ...(payload.data.kb ?? {}) },
+                  confirm: { ...s.data.confirm, ...(payload.data.confirm ?? {}) },
+                }
+              : s.data,
+            furthestCompletedStep:
+              payload.furthestCompletedStep !== undefined
+                ? payload.furthestCompletedStep
+                : s.furthestCompletedStep,
+          };
+        }),
     }),
     {
       name: STORAGE_KEY,
