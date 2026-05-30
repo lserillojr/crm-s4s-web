@@ -16,7 +16,6 @@ describe("saveEncryptedToken", () => {
       tenantId: "t-1",
       refreshToken: "rt-xyz",
       calendarId: "primary",
-      calendarName: "Maria",
       encryptionKey: "key-abc",
     });
     expect(client.query).toHaveBeenCalledTimes(1);

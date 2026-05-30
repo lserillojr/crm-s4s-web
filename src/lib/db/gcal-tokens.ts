@@ -11,7 +11,6 @@ export interface SaveTokenInput {
   tenantId: string;
   refreshToken: string;
   calendarId: string;
-  calendarName?: string;
   encryptionKey: string;
 }
 
