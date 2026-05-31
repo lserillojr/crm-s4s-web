@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * Wrapper client da página /settings/working-hours.
+ * Wrapper client da página /settings/working-hours (Story 7.6 fase 2).
  *
- * Mock fase 1: lê initial value de localStorage + persiste localStorage no
- * submit. Quando Auth + proxy Chatwoot existirem (SP2 fase 2 + SP3), troca
- * o handler por POST no proxy.
+ * Persiste no backend via proxy autenticado /api/working-hours:
+ *   - mount → GET  carrega o horário do Chatwoot do tenant (degrada pra defaults
+ *     + aviso se o backend não respondeu — `loaded:false`).
+ *   - salvar → PUT grava no Chatwoot. O save NÃO degrada em silêncio: se falhar,
+ *     o MEI vê erro e tenta de novo (working_hours filtra os slots da IA).
  *
- * Migrado em Story 7.6-DEV pra novo WorkingHoursForm controlado
- * (value/onChange em vez de initialValue/onSubmit).
+ * Substitui o rascunho localStorage da fase 1.
  */
 import { useEffect, useState } from "react";
 import {
@@ -18,42 +19,44 @@ import {
 } from "@/lib/working-hours/schema";
 import { WorkingHoursForm } from "@/components/working-hours-form";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const STORAGE_KEY = "s4s-working-hours-draft-v1";
+const ENDPOINT = "/api/working-hours";
 
 type SaveStatus = "idle" | "saved" | "error";
 
-function loadFromStorage(): WeeklyHours {
-  if (typeof window === "undefined") return weeklyHoursDefaults;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return weeklyHoursDefaults;
-    const parsed = weeklyHoursSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) return parsed.data;
-    return weeklyHoursDefaults;
-  } catch {
-    return weeklyHoursDefaults;
-  }
-}
-
 export function WorkingHoursClient() {
   const [mounted, setMounted] = useState(false);
+  const [loaded, setLoaded] = useState(true);
   const [value, setValue] = useState<WeeklyHours>(weeklyHoursDefaults);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<SaveStatus>("idle");
 
   useEffect(() => {
-    setValue(loadFromStorage());
-    setMounted(true);
+    let active = true;
+    void (async () => {
+      try {
+        const res = await fetch(ENDPOINT, { method: "GET" });
+        const body = (await res.json()) as {
+          weeklyHours?: unknown;
+          loaded?: boolean;
+        };
+        if (!active) return;
+        const parsed = weeklyHoursSchema.safeParse(body.weeklyHours);
+        if (parsed.success) setValue(parsed.data);
+        setLoaded(res.ok && body.loaded === true);
+      } catch {
+        if (active) setLoaded(false);
+      } finally {
+        if (active) setMounted(true);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const handleSave = (): void => {
+  const handleSave = async (): Promise<void> => {
     setSubmitting(true);
     setStatus("idle");
     try {
@@ -62,8 +65,17 @@ export function WorkingHoursClient() {
         setStatus("error");
         return;
       }
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed.data));
+      const res = await fetch(ENDPOINT, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(parsed.data),
+      });
+      if (!res.ok) {
+        setStatus("error");
+        return;
+      }
       setStatus("saved");
+      setLoaded(true);
     } catch {
       setStatus("error");
     } finally {
@@ -73,21 +85,23 @@ export function WorkingHoursClient() {
 
   return (
     <div className="space-y-4">
-      <div
-        role="status"
-        className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900"
-      >
-        Rascunho local — autenticação ainda não disponível. Suas mudanças
-        ficam só nesse navegador até a conta ser ativada.
-      </div>
+      {mounted && !loaded && (
+        <div
+          role="status"
+          className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900"
+        >
+          Não consegui carregar seu horário agora — mostrando o padrão. Você
+          pode ajustar e salvar; vou sincronizar com o WhatsApp/Chatwoot.
+        </div>
+      )}
 
       {status === "saved" && (
         <div
           role="status"
           className="rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-900"
         >
-          Rascunho salvo localmente. Quando sua conta estiver ativa, vai
-          sincronizar com o WhatsApp/Chatwoot automaticamente.
+          Horário salvo. A partir de agora a IA só oferece horários dentro do
+          seu atendimento.
         </div>
       )}
 
@@ -96,8 +110,8 @@ export function WorkingHoursClient() {
           role="alert"
           className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
         >
-          Não consegui salvar — verifique os horários informados ou se o
-          navegador permite localStorage (não funciona em modo anônimo).
+          Não consegui salvar — verifique os horários informados e tente de novo
+          em instantes.
         </div>
       )}
 
@@ -116,7 +130,7 @@ export function WorkingHoursClient() {
               <div className="flex justify-end">
                 <Button
                   type="button"
-                  onClick={handleSave}
+                  onClick={() => void handleSave()}
                   disabled={submitting}
                   className="bg-s4s-blue hover:bg-s4s-blue/90"
                 >
