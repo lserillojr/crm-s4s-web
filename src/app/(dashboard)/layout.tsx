@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { signOut, auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { IntegrationHealthBanner } from "@/components/integrations/integration-health-banner";
@@ -7,8 +6,8 @@ import {
   getIntegrationHealth,
   type IntegrationHealth,
 } from "@/lib/integrations/get-integration-health";
-import { SsoLaunchers } from "@/components/sso/sso-launchers";
-import { getSsoTargets } from "@/lib/sso-targets";
+import { Sidebar } from "@/components/shell/sidebar";
+import { PrewarmSso } from "@/components/shell/prewarm-sso";
 import { QueryProvider } from "@/components/providers/query-provider";
 
 export default async function DashboardLayout({
@@ -31,33 +30,35 @@ export default async function DashboardLayout({
     }
   }
 
+  const userName = session?.user?.name ?? "";
+
   return (
-    <div className="min-h-screen bg-s4s-gray-light">
-      <header className="border-b bg-white">
-        <div className="container flex h-14 items-center justify-between">
-          <Link href="/" className="font-heading text-xl font-bold text-s4s-blue">
-            S4S
-          </Link>
-          <nav className="flex items-center gap-4 text-sm">
-            <SsoLaunchers variant="nav" targets={getSsoTargets()} />
-            <Link href="/dashboard" className="text-s4s-blue hover:underline">
-              Dashboard
-            </Link>
-            <Link href="/settings/integracoes" className="text-s4s-blue hover:underline">
-              Integrações
-            </Link>
-            <form action={sair}>
-              <Button type="submit" variant="ghost" size="sm" data-testid="logout">
-                Sair
-              </Button>
-            </form>
-          </nav>
+    <div className="flex h-screen flex-col bg-s4s-gray-light">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b bg-white px-4">
+        <span className="font-heading text-xl font-bold text-s4s-blue">S4S</span>
+        <div className="flex items-center gap-4 text-sm">
+          {userName && (
+            <span className="text-s4s-blue">Bem-vindo, {userName} 👋</span>
+          )}
+          <form action={sair}>
+            <Button type="submit" variant="ghost" size="sm" data-testid="logout">
+              Sair
+            </Button>
+          </form>
         </div>
       </header>
-      <main className="container py-8">
-        {health && <IntegrationHealthBanner health={health} />}
-        <QueryProvider>{children}</QueryProvider>
-      </main>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main className="min-w-0 flex-1 overflow-auto">
+          {health && (
+            <div className="px-6 pt-4">
+              <IntegrationHealthBanner health={health} />
+            </div>
+          )}
+          <QueryProvider>{children}</QueryProvider>
+        </main>
+      </div>
+      <PrewarmSso />
     </div>
   );
 }
