@@ -12,7 +12,8 @@ test.describe("/settings/integracoes", () => {
   test("renderiza 3 cards (Google/WhatsApp/Instagram) + nav ativo", async ({ page }) => {
     await page.goto("/settings/integracoes");
 
-    // Navegação do App Shell: item "Config" (aponta pra esta rota) marcado ativo
+    // Navegação do App Shell: "Config" auto-expande nesta sub-rota e o subitem
+    // Integrações fica marcado ativo.
     await expect(page.getByTestId("nav-/settings/integracoes")).toHaveAttribute(
       "aria-current",
       "page",

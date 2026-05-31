@@ -36,7 +36,11 @@ export function atendimentoUrl(chatwootBase: string): string {
 }
 
 export function funilUrl(odooBase: string): string {
-  return withEmbed(`${stripTrailingSlash(odooBase)}/odoo/crm`);
+  // Odoo 19 não expõe path "crm" (/odoo/crm dá 404). O pipeline do CRM só é
+  // acessível pela action via xmlid. Contatos usa /odoo/contacts (path nativo).
+  return withEmbed(
+    `${stripTrailingSlash(odooBase)}/odoo/action-crm.crm_lead_action_pipeline`,
+  );
 }
 
 export function contatosUrl(odooBase: string): string {
