@@ -1,60 +1,58 @@
-import { afterEach, describe, it, expect } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
-
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import DashboardPage from "@/app/(dashboard)/dashboard/page";
 
 afterEach(() => {
   cleanup();
 });
 
-/**
- * Unit tests do `/dashboard` (Story 7.5-DEV fase 1 — mock hardcoded).
- *
- * Cobre o golden render do MEI logando pela primeira vez:
- * - saudação + subtítulo contextual
- * - 3 cards KPI com títulos visíveis em pt-BR
- * - contagem 12 no card de mensagens
- * - aviso de fase 1 indicando que os números são exemplos
- *
- * Quando o fetch real do WF05 entrar (fase 2), esses testes seguem valendo
- * desde que o mock vire fixture com a mesma forma.
- */
+const happyData = {
+  greeting: { userName: "João", businessName: "Salão da Maria" },
+  weekConversations: 47,
+  conversationsToday: { count: 12, trend: "up", vsYesterday: 3 },
+  leadsNew: { count: 2, names: ["Ana", "Bia"] },
+  nextMeeting: null,
+};
+
+let mockReturn: { isLoading: boolean; isError: boolean; data: typeof happyData | undefined };
+
+vi.mock("@/lib/dashboard/use-dashboard-summary", () => ({
+  useDashboardSummary: () => mockReturn,
+}));
+
+beforeEach(() => {
+  mockReturn = { isLoading: false, isError: false, data: happyData };
+});
+
 describe("DashboardPage", () => {
-  it("renderiza saudação 'Bem-vinda, Maria'", () => {
+  it("saúda usuário + indica negócio e renderiza os 3 cards", () => {
     render(<DashboardPage />);
-    const greeting = screen.getByTestId("dashboard-greeting");
-    expect(greeting).toHaveTextContent(/Bem-vinda,\s*Maria/);
+    expect(screen.getByTestId("dashboard-greeting")).toHaveTextContent("João");
+    expect(screen.getByTestId("dashboard-greeting")).toHaveTextContent("Salão da Maria");
+    expect(screen.getByTestId("messages-card")).toBeInTheDocument();
+    expect(screen.getByTestId("leads-card")).toBeInTheDocument();
+    expect(screen.getByTestId("next-meeting-card")).toBeInTheDocument();
   });
 
-  it("renderiza os 3 cards de KPI com títulos esperados", () => {
+  it("nextMeeting null → card mostra estado neutro", () => {
     render(<DashboardPage />);
-
-    const messagesCard = screen.getByTestId("card-messages-today");
-    expect(within(messagesCard).getByText("Mensagens hoje")).toBeInTheDocument();
-
-    const leadsCard = screen.getByTestId("card-new-leads-week");
-    expect(
-      within(leadsCard).getByText("Leads novos esta semana")
-    ).toBeInTheDocument();
-
-    const meetingCard = screen.getByTestId("card-next-meeting");
-    expect(
-      within(meetingCard).getByText("Próxima reunião")
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("next-meeting-when")).toHaveTextContent("—");
   });
 
-  it("mostra contagem 12 no card de mensagens", () => {
+  it("não mostra mais o aviso de dados de exemplo", () => {
     render(<DashboardPage />);
-    const messagesCard = screen.getByTestId("card-messages-today");
-    expect(within(messagesCard).getByText("12")).toBeInTheDocument();
-    expect(
-      within(messagesCard).getByText("+3 nos últimos 30 minutos")
-    ).toBeInTheDocument();
+    expect(screen.queryByTestId("dashboard-phase1-notice")).toBeNull();
   });
 
-  it("mostra aviso de fase 1 ('Dados mostrados são exemplos')", () => {
+  it("estado de carregamento mostra 'Carregando seu resumo…'", () => {
+    mockReturn = { isLoading: true, isError: false, data: undefined };
     render(<DashboardPage />);
-    const notice = screen.getByTestId("dashboard-phase1-notice");
-    expect(notice).toHaveTextContent(/Dados mostrados são exemplos/);
+    expect(screen.getByText("Carregando seu resumo…")).toBeInTheDocument();
+  });
+
+  it("estado de erro total mostra o aviso de falha", () => {
+    mockReturn = { isLoading: false, isError: true, data: undefined };
+    render(<DashboardPage />);
+    expect(screen.getByText(/Não foi possível carregar/i)).toBeInTheDocument();
   });
 });

@@ -23,6 +23,7 @@ const envSchema = z.object({
   // n8n API (Wizard consome /webhook/onboarding/provision em SP2 fase 2+)
   N8N_API_BASE_URL: z.string().url().optional(),
   N8N_PROVISION_API_KEY: z.string().optional(),
+  N8N_AI_SERVICE_TOKEN: z.string().optional(),
 
   // Resend (transactional emails — futuro)
   RESEND_API_KEY: z.string().optional(),

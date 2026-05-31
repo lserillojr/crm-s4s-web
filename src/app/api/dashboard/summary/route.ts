@@ -1,49 +1,63 @@
-import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { auth } from "@/auth";
+import { env } from "@/lib/env";
 
-/**
- * GET /api/dashboard/summary
- *
- * MOCK fase 2 — substituir por proxy real ao WF05 (Painel API)
- * quando Auth.js OIDC estiver disponível (Story 7.4 / SP3 Keycloak).
- *
- * Forma do payload já reflete o contrato que o WF05 vai expor:
- * - messagesToday: contagem + tendência vs ontem
- * - leadsNew: contagem + lista dos 3 nomes mais recentes
- * - nextMeeting: pode ser null se MEI não tem agenda nas próximas 24h
- *
- * Mantemos esse endpoint client-side via Tanstack Query pra que,
- * quando o proxy real entrar, só mudemos o body do handler — a UI
- * permanece intacta.
- */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export type DashboardSummary = {
-  messagesToday: {
-    count: number;
-    trend: "up" | "down" | "flat";
-    vsYesterday: number;
-  };
-  leadsNew: {
-    count: number;
-    names: string[];
-  };
-  nextMeeting: {
-    withName: string;
-    whenISO: string;
-    topic: string;
-  } | null;
+  greeting: { userName: string; businessName: string };
+  weekConversations: number | null;
+  conversationsToday: { count: number; trend: "up" | "down" | "flat"; vsYesterday: number } | null;
+  leadsNew: { count: number; names: string[] } | null;
+  nextMeeting: { withName: string; whenISO: string; topic: string } | null;
 };
 
-export async function GET() {
-  const body: DashboardSummary = {
-    messagesToday: { count: 17, trend: "up", vsYesterday: 4 },
-    leadsNew: { count: 3, names: ["Maria S.", "João P.", "Ana C."] },
-    nextMeeting: {
-      withName: "Carla M.",
-      whenISO: "2026-05-14T14:00:00-03:00",
-      topic: "Corte + escova",
-    },
+function degraded(userName: string): DashboardSummary {
+  return {
+    greeting: { userName, businessName: "" },
+    weekConversations: null, conversationsToday: null, leadsNew: null, nextMeeting: null,
   };
-  return NextResponse.json(body);
+}
+
+export async function GET(_req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.tenantId) {
+    return Response.json({ error: "unauth" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  }
+  const userName = session.user.name ?? "";
+  const base = env.N8N_API_BASE_URL?.replace(/\/+$/, "");
+  const token = env.N8N_AI_SERVICE_TOKEN;
+
+  if (!base) {
+    console.warn("[dashboard/summary] N8N_API_BASE_URL not configured — returning degraded", {
+      tenantId: session.user.tenantId,
+    });
+    return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
+
+  try {
+    const resp = await fetch(`${base}/dashboard/api/v1/summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-ai-service-token": token ?? "" },
+      body: JSON.stringify({ tenant_id: session.user.tenantId }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!resp.ok) {
+      console.warn("[dashboard/summary] WF non-200", { status: resp.status, tenantId: session.user.tenantId });
+      return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
+    }
+    const wf = (await resp.json()) as DashboardSummary;
+    return Response.json(
+      { ...wf, greeting: { userName, businessName: wf.greeting?.businessName ?? "" } },
+      { status: 200, headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err) {
+    console.warn("[dashboard/summary] WF fetch failed", {
+      tenantId: session.user.tenantId,
+      isAbort: err instanceof Error && err.name === "TimeoutError",
+    });
+    return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
+  }
 }
