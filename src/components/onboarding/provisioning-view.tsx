@@ -61,7 +61,7 @@ export function ProvisioningView({
             <li>✅ WhatsApp conectado</li>
             <li>✅ IA ativa e atendendo</li>
           </ul>
-          <SsoLaunchers variant="card" />
+          <SsoLaunchers />
           <Button asChild className="w-full bg-s4s-blue hover:bg-s4s-blue/90">
             <Link href="/dashboard">Ir pro painel</Link>
           </Button>

@@ -5,8 +5,6 @@ import { MessageSquare, Briefcase, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getSsoTargets, type SsoTargets } from "@/lib/sso-targets";
 
-type Variant = "card" | "nav";
-
 type Item = {
   key: keyof SsoTargets;
   href: string | null;
@@ -16,42 +14,20 @@ type Item = {
 
 /**
  * Atalhos de SSO pras ferramentas do MEI (Chatwoot/Odoo). Entram logado, sem 2a
- * senha (identidade pre-linkada na Fase 1). Reusado na tela de sucesso (card) e
- * no header do dashboard (nav). URL ausente: card mostra botao desabilitado
- * (discoverable); nav omite (header limpo).
+ * senha (identidade pre-linkada na Fase 1). Usado na tela de sucesso do
+ * onboarding (card). URL ausente: mostra botao desabilitado (discoverable).
+ * (O header do dashboard nao usa mais SSO _blank — virou o App Shell com sidebar
+ * + iframes; ver components/shell.)
  */
 export function SsoLaunchers({
   targets = getSsoTargets(),
-  variant = "card",
 }: {
   targets?: SsoTargets;
-  variant?: Variant;
 }) {
   const items: Item[] = [
     { key: "chatwoot", href: targets.chatwoot, label: "Abrir meu atendimento", icon: MessageSquare },
     { key: "odoo", href: targets.odoo, label: "Abrir meu backoffice", icon: Briefcase },
   ];
-
-  if (variant === "nav") {
-    return (
-      <>
-        {items.map(({ key, href, label, icon: Icon }) =>
-          href ? (
-            <Link
-              key={key}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-s4s-blue hover:underline"
-            >
-              <Icon aria-hidden="true" className="h-4 w-4" />
-              {label}
-            </Link>
-          ) : null,
-        )}
-      </>
-    );
-  }
 
   return (
     <div className="space-y-2" data-testid="sso-launchers">
