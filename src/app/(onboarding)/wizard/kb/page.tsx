@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import ReactMarkdown from "react-markdown";
 import {
   Card,
   CardContent,
@@ -19,6 +18,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  useFormField,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,52 +30,32 @@ import {
   VERTICALS,
 } from "@/lib/wizard/schemas";
 import { nextStepSlug } from "@/lib/wizard/steps";
-
-/**
- * Templates iniciais de KB por vertical.
- *
- * São sugestões — não preenchem automático. O MEI clica em "Usar template"
- * pra evitar surpresa (texto sumindo se ele já tinha começado a escrever).
- * "outro" vive como string vazia + dica no preview placeholder.
- */
-const KB_TEMPLATES: Record<string, string> = {
-  beleza: `# Salão de Beleza
-
-## Serviços e preços
-- Corte feminino: R$ 80
-- Escova: R$ 60
-- Coloração: a partir de R$ 180
-
-## Horário
-Segunda a sexta 9h-19h, sábado 9h-13h. Domingo fechado.`,
-  comercio_digital: `# Loja Online
-
-## O que vendemos
-Acessórios femininos artesanais — colares, brincos, anéis.
-
-## Preços e prazo
-Produtos R$ 30-150. Envio em até 3 dias úteis via Correios.`,
-  artesanal: `# Produtos Artesanais
-
-## Sobre
-Faço sabonetes artesanais com ingredientes naturais.
-
-## Preços
-Sabonete R$ 15, kit com 3 R$ 40.`,
-  ingles: `# Escola de Inglês
-
-## Cursos oferecidos
-- Conversação (R$ 200/mês)
-- Preparatório IELTS (R$ 350/mês)
-
-## Aulas
-Online ou presencial em Pinheiros (SP).`,
-  outro: "",
-};
+import { KB_TEMPLATES } from "@/lib/wizard/kb-templates";
+import { KbMarkdownField } from "@/components/kb/kb-markdown-field";
 
 /** Label da vertical (pra rotular o botão "Usar template de X") */
 function verticalLabel(value: string): string {
   return VERTICALS.find((v) => v.value === value)?.label ?? value;
+}
+
+/**
+ * Thin adapter: reads formItemId/aria props from FormItem context via
+ * useFormField() and forwards them to KbMarkdownField's inner textarea.
+ * Required because KbMarkdownField renders a <div> as root — wrapping with
+ * <FormControl> (Radix Slot) would pass id to the div, breaking label association.
+ */
+function KbMarkdownFieldWithFormContext(props: React.ComponentPropsWithoutRef<typeof KbMarkdownField> & { innerRef?: React.Ref<HTMLTextAreaElement> }) {
+  const { error, formItemId, formDescriptionId, formMessageId } = useFormField();
+  const { innerRef, ...rest } = props;
+  return (
+    <KbMarkdownField
+      {...rest}
+      ref={innerRef}
+      id={formItemId}
+      aria-describedby={!error ? formDescriptionId : `${formDescriptionId} ${formMessageId}`}
+      aria-invalid={!!error}
+    />
+  );
 }
 
 export default function KbStepPage() {
@@ -194,43 +174,12 @@ export default function KbStepPage() {
                     </div>
                   )}
 
-                  {/*
-                    Grid 2 colunas em md+ (editor + preview). O FormControl
-                    fica como filho direto do grid pro Radix Slot copiar o
-                    formItemId pro <textarea> diretamente (label associa OK).
-                    Em mobile, preview some (hidden md:block) — só editor.
-                  */}
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <FormControl>
-                      <textarea
-                        placeholder="Atendo cortes femininos, escova e coloração no centro de São Paulo. Horário comercial seg-sex 9h-19h. Cores de mecha custam R$ 180..."
-                        rows={12}
-                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        {...field}
-                        ref={(el) => {
-                          field.ref(el);
-                          textareaRef.current = el;
-                        }}
-                      />
-                    </FormControl>
-                    <div
-                      aria-label="Preview da KB"
-                      data-testid="kb-preview"
-                      className="hidden min-h-[180px] w-full rounded-md border border-dashed border-input bg-muted/30 px-3 py-2 text-sm md:block"
-                    >
-                      {about.trim().length > 0 ? (
-                        <div className="prose prose-sm max-w-none break-words [&>h1]:mt-0 [&>h1]:text-base [&>h1]:font-semibold [&>h2]:text-sm [&>h2]:font-semibold [&>ul]:list-disc [&>ul]:pl-5">
-                          <ReactMarkdown>{about}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Preview aparece aqui — use markdown:{" "}
-                          <code># título</code>, <code>- listas</code>,{" "}
-                          <code>**negrito**</code>.
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  <KbMarkdownFieldWithFormContext
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
+                    innerRef={(el) => { field.ref(el); textareaRef.current = el; }}
+                    placeholder="Atendo cortes femininos, escova e coloração no centro de São Paulo. Horário comercial seg-sex 9h-19h. Cores de mecha custam R$ 180..."
+                  />
 
                   <FormDescription className="flex justify-between">
                     <span>
