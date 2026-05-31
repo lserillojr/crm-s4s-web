@@ -9,11 +9,14 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("/settings/integracoes", () => {
-  test("renderiza 3 cards (Google/WhatsApp/Instagram) + link nav", async ({ page }) => {
+  test("renderiza 3 cards (Google/WhatsApp/Instagram) + nav ativo", async ({ page }) => {
     await page.goto("/settings/integracoes");
 
-    // Link no header
-    await expect(page.getByRole("link", { name: /Integrações/i }).first()).toBeVisible();
+    // Navegação do App Shell: item "Config" (aponta pra esta rota) marcado ativo
+    await expect(page.getByTestId("nav-/settings/integracoes")).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
     // 3 cards
     await expect(page.getByTestId("google-calendar-card")).toBeVisible();
