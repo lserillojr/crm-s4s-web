@@ -7,6 +7,7 @@ import { NextMeetingCard } from "@/components/dashboard/next-meeting-card";
 export default function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary();
 
+  // `|| ""` (não `??`): string vazia do nome também não deve renderizar vírgula/traço no header
   const userName = data?.greeting.userName || "";
   const businessName = data?.greeting.businessName || "";
   const week = data?.weekConversations;

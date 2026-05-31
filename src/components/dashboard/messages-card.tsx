@@ -7,7 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Card "Mensagens hoje" — primeiro dos 3 cards do D1.
+ * Card "Conversas hoje" — primeiro dos 3 cards do D1.
  *
  * Mostra o contador grande + comparação com ontem.
  * - trend=up → verde com seta pra cima
