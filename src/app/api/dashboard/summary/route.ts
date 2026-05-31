@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
-import { auth } from "@/auth";
-import { env } from "@/lib/env";
+import { requireApiTenant } from "@/lib/api/require-tenant";
+import { callAiService } from "@/lib/api/ai-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,44 +20,25 @@ function degraded(userName: string): DashboardSummary {
   };
 }
 
+const NO_STORE = { "Cache-Control": "no-store" };
+
 export async function GET(_req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.tenantId) {
-    return Response.json({ error: "unauth" }, { status: 401, headers: { "Cache-Control": "no-store" } });
-  }
-  const userName = session.user.name ?? "";
-  const base = env.N8N_API_BASE_URL?.replace(/\/+$/, "");
-  const token = env.N8N_AI_SERVICE_TOKEN;
+  const ctx = await requireApiTenant();
+  if ("response" in ctx) return ctx.response;
 
-  if (!base) {
-    console.warn("[dashboard/summary] N8N_API_BASE_URL not configured — returning degraded", {
-      tenantId: session.user.tenantId,
-    });
-    return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
+  const result = await callAiService<DashboardSummary>({
+    path: "/dashboard/api/v1/summary",
+    body: { tenant_id: ctx.tenantId },
+  });
+
+  if (!result.ok) {
+    console.warn("[dashboard/summary] degraded", { tenantId: ctx.tenantId, reason: result.reason });
+    return Response.json(degraded(ctx.userName), { status: 200, headers: NO_STORE });
   }
 
-  try {
-    const resp = await fetch(`${base}/dashboard/api/v1/summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-ai-service-token": token ?? "" },
-      body: JSON.stringify({ tenant_id: session.user.tenantId }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!resp.ok) {
-      console.warn("[dashboard/summary] WF non-200", { status: resp.status, tenantId: session.user.tenantId });
-      return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
-    }
-    const wf = (await resp.json()) as DashboardSummary;
-    return Response.json(
-      { ...wf, greeting: { userName, businessName: wf.greeting?.businessName ?? "" } },
-      { status: 200, headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (err) {
-    console.warn("[dashboard/summary] WF fetch failed", {
-      tenantId: session.user.tenantId,
-      isAbort: err instanceof Error && err.name === "TimeoutError",
-    });
-    return Response.json(degraded(userName), { status: 200, headers: { "Cache-Control": "no-store" } });
-  }
+  const wf = result.data;
+  return Response.json(
+    { ...wf, greeting: { userName: ctx.userName, businessName: wf.greeting?.businessName ?? "" } },
+    { status: 200, headers: NO_STORE },
+  );
 }
