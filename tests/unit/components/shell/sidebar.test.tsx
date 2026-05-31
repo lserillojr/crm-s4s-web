@@ -1,19 +1,24 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 
 const mockPathname = vi.fn(() => "/funil");
 vi.mock("next/navigation", () => ({ usePathname: () => mockPathname() }));
 
 import { Sidebar, NAV_ITEMS } from "@/components/shell/sidebar";
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  mockPathname.mockReturnValue("/funil");
+});
 
 describe("Sidebar", () => {
-  it("renderiza os 5 itens de navegação", () => {
+  it("renderiza os 5 itens de navegação de topo", () => {
+    mockPathname.mockReturnValue("/dashboard");
     render(<Sidebar />);
     for (const item of NAV_ITEMS) {
       expect(screen.getByText(item.label)).toBeInTheDocument();
     }
+    expect(NAV_ITEMS).toHaveLength(5);
   });
 
   it("marca aria-current=page no item da rota atual", () => {
@@ -23,12 +28,36 @@ describe("Sidebar", () => {
     expect(screen.getByTestId("nav-/atendimento")).not.toHaveAttribute("aria-current");
   });
 
-  it("considera ativo também em sub-rotas (startsWith)", () => {
+  it("mantém Config colapsado fora de /settings e revela as 3 seções ao clicar", () => {
+    mockPathname.mockReturnValue("/dashboard");
+    render(<Sidebar />);
+    expect(screen.queryByTestId("nav-/settings/kb")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("nav-/settings"));
+
+    expect(screen.getByTestId("nav-/settings/integracoes")).toBeInTheDocument();
+    expect(screen.getByTestId("nav-/settings/kb")).toBeInTheDocument();
+    expect(screen.getByTestId("nav-/settings/working-hours")).toBeInTheDocument();
+  });
+
+  it("auto-expande Config quando a rota atual é uma sub-rota de settings", () => {
+    mockPathname.mockReturnValue("/settings/kb");
+    render(<Sidebar />);
+    const kb = screen.getByTestId("nav-/settings/kb");
+    expect(kb).toBeInTheDocument();
+    expect(kb).toHaveAttribute("aria-current", "page");
+  });
+
+  it("subitens apontam para as rotas de cada seção", () => {
     mockPathname.mockReturnValue("/settings/integracoes");
     render(<Sidebar />);
     expect(screen.getByTestId("nav-/settings/integracoes")).toHaveAttribute(
-      "aria-current",
-      "page",
+      "href",
+      "/settings/integracoes",
+    );
+    expect(screen.getByTestId("nav-/settings/working-hours")).toHaveAttribute(
+      "href",
+      "/settings/working-hours",
     );
   });
 });

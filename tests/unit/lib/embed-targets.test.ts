@@ -12,9 +12,9 @@ describe("embed-targets builders", () => {
       "https://chat.example.com/?embed=s4s",
     );
   });
-  it("funilUrl aponta pro CRM do Odoo com embed", () => {
+  it("funilUrl aponta pro pipeline do CRM (action xmlid, Odoo 19) com embed", () => {
     expect(funilUrl("https://odoo.example.com")).toBe(
-      "https://odoo.example.com/odoo/crm?embed=s4s",
+      "https://odoo.example.com/odoo/action-crm.crm_lead_action_pipeline?embed=s4s",
     );
   });
   it("contatosUrl aponta pros contatos do Odoo com embed", () => {
@@ -39,7 +39,7 @@ describe("getEmbedTargets", () => {
     process.env.NEXT_PUBLIC_ODOO_URL = "https://odoo.example.com";
     expect(getEmbedTargets()).toEqual({
       atendimento: "https://chat.example.com/?embed=s4s",
-      funil: "https://odoo.example.com/odoo/crm?embed=s4s",
+      funil: "https://odoo.example.com/odoo/action-crm.crm_lead_action_pipeline?embed=s4s",
       contatos: "https://odoo.example.com/odoo/contacts?embed=s4s",
     });
   });
