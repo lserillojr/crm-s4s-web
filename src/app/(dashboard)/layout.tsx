@@ -49,13 +49,19 @@ export default async function DashboardLayout({
       </header>
       <div className="flex min-h-0 flex-1">
         <Sidebar />
-        <main className="min-w-0 flex-1 overflow-auto">
+        {/* flex-col + altura determinística: o banner é shrink-0 e o conteúdo
+            ocupa o resto exato. Telas embutidas (iframe h-full) preenchem esse
+            espaço sem competir com o banner num overflow — o scroll fica só no
+            wrapper interno, evitando o loop de ResizeObserver do kanban Odoo. */}
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {health && (
-            <div className="px-6 pt-4">
+            <div className="shrink-0 px-6 pt-4">
               <IntegrationHealthBanner health={health} />
             </div>
           )}
-          <QueryProvider>{children}</QueryProvider>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <QueryProvider>{children}</QueryProvider>
+          </div>
         </main>
       </div>
       <PrewarmSso />

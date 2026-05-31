@@ -26,7 +26,10 @@ export function EmbeddedFrame({
       data-testid="embedded-frame"
       src={src}
       title={title}
-      className="h-full w-full border-0"
+      // `block`: iframe é inline por padrão (vertical-align: baseline) e deixa um
+      // gap de ~4px embaixo → barra de rolagem de poucos px → a largura do frame
+      // oscila → o ResizeObserver do kanban do Odoo entra em loop e trava a aba.
+      className="block h-full w-full border-0"
     />
   );
 }
