@@ -35,7 +35,7 @@ export function MessagesCard({ count, trend, vsYesterday }: MessagesCardProps) {
     <Card data-testid="messages-card">
       <CardHeader>
         <CardTitle className="text-sm font-medium text-muted-foreground">
-          Mensagens hoje
+          Conversas hoje
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
