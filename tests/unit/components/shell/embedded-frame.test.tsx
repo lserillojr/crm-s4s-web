@@ -13,6 +13,12 @@ describe("EmbeddedFrame", () => {
     expect(frame).toHaveAttribute("title", "Atendimento");
   });
 
+  it("usa display:block pra eliminar o gap inline (baseline) que gera scrollbar e loop de ResizeObserver", () => {
+    render(<EmbeddedFrame src="https://odoo.example.com/odoo/crm?embed=s4s" title="Funil" />);
+    const frame = screen.getByTestId("embedded-frame");
+    expect(frame).toHaveClass("block");
+  });
+
   it("renderiza fallback (sem iframe) quando src é null", () => {
     render(<EmbeddedFrame src={null} title="Funil" />);
     expect(screen.queryByTestId("embedded-frame")).not.toBeInTheDocument();
