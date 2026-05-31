@@ -9,6 +9,7 @@ import {
 } from "@/lib/integrations/get-integration-health";
 import { SsoLaunchers } from "@/components/sso/sso-launchers";
 import { getSsoTargets } from "@/lib/sso-targets";
+import { QueryProvider } from "@/components/providers/query-provider";
 
 export default async function DashboardLayout({
   children,
@@ -55,7 +56,7 @@ export default async function DashboardLayout({
       </header>
       <main className="container py-8">
         {health && <IntegrationHealthBanner health={health} />}
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </main>
     </div>
   );
