@@ -61,9 +61,28 @@ export function ProvisioningView({
             <li>✅ WhatsApp conectado</li>
             <li>✅ IA ativa e atendendo</li>
           </ul>
+
+          {/* Conexão do Google acontece AQUI (pós-provisionamento): no wizard
+              ainda não há tenant pra guardar os tokens. Conectar é opcional —
+              "Ir pro painel" segue sem o Google. */}
+          <div className="space-y-2 rounded-md border border-s4s-blue/30 bg-s4s-blue/5 p-3">
+            <p className="text-sm font-medium">Conecte sua agenda (opcional)</p>
+            <p className="text-sm text-muted-foreground">
+              Conecte o Google Calendar pra IA marcar reuniões direto na sua agenda.
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <a
+                href="/api/oauth/google/start?returnTo=/dashboard"
+                data-testid="connect-google"
+              >
+                Conectar Google Calendar
+              </a>
+            </Button>
+          </div>
+
           <SsoLaunchers />
           <Button asChild className="w-full bg-s4s-blue hover:bg-s4s-blue/90">
-            <Link href="/dashboard">Ir pro painel</Link>
+            <Link href="/dashboard">Agora não, ir pro painel</Link>
           </Button>
         </CardContent>
       </Card>

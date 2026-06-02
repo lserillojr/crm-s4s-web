@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { auth } from "@/auth";
+import { getTenantIdByEmail } from "@/lib/auth/onboarding-guard";
 import {
   exchangeCodeForTokens,
   listCalendars,
@@ -57,7 +58,11 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await auth();
-  if (!session?.user?.tenantId) {
+  // Token defasado logo após o provisionamento → resolve o tenant pelo banco.
+  const tenantId =
+    session?.user?.tenantId ??
+    (session?.user?.email ? await getTenantIdByEmail(session.user.email) : null);
+  if (!tenantId) {
     return Response.redirect(new URL("/login", origin));
   }
 
@@ -99,7 +104,7 @@ export async function GET(req: NextRequest) {
   if (!key) return back({ error: "internal" });
 
   await saveEncryptedToken(getPool(), {
-    tenantId: session.user.tenantId,
+    tenantId,
     refreshToken: tokens.refresh_token,
     calendarId: primary.id,
     encryptionKey: key,

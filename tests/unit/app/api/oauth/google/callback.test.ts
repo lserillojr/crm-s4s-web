@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/auth", () => ({ auth: vi.fn() }));
+const tenantByEmailMock = vi.fn();
+vi.mock("@/lib/auth/onboarding-guard", () => ({
+  getTenantIdByEmail: (e: string) => tenantByEmailMock(e),
+}));
 
 const { cookieJar } = vi.hoisted(() => ({ cookieJar: new Map<string, string>() }));
 vi.mock("next/headers", () => ({
@@ -40,6 +44,7 @@ import { saveEncryptedToken } from "@/lib/db/gcal-tokens";
 beforeEach(() => {
   cookieJar.clear();
   vi.clearAllMocks();
+  tenantByEmailMock.mockResolvedValue(null);
   process.env.WIZARD_TOKEN_KEY = "test-key";
   process.env.GOOGLE_CLIENT_ID = "cid";
   process.env.GOOGLE_CLIENT_SECRET = "csec";
@@ -95,6 +100,27 @@ describe("GET /api/oauth/google/callback", () => {
       encryptionKey: "test-key",
     });
     expect(res.headers.get("location")).toMatch(/\/wizard\/calendar\?connected=1&calendar_id=primary/);
+  });
+
+  it("resolve tenant do banco quando o token vem sem tenantId (pós-provisionamento)", async () => {
+    cookieJar.set("gcal_oauth_state", "abc");
+    cookieJar.set("gcal_oauth_return_to", "/dashboard");
+    vi.mocked(auth).mockResolvedValue({ user: { email: "mei@x.dev" } } as never);
+    tenantByEmailMock.mockResolvedValue("t-db");
+    vi.mocked(exchangeCodeForTokens).mockResolvedValue({ refresh_token: "rt", access_token: "at", expires_in: 3600 });
+    vi.mocked(listCalendars).mockResolvedValue([{ id: "primary", summary: "Maria", primary: true }]);
+    vi.mocked(createTestEvent).mockResolvedValue({ eventId: "evt-1" });
+    vi.mocked(deleteEvent).mockResolvedValue();
+
+    const res = await GET(req("code=c1&state=abc") as never);
+
+    expect(saveEncryptedToken).toHaveBeenCalledWith(expect.anything(), {
+      tenantId: "t-db",
+      refreshToken: "rt",
+      calendarId: "primary",
+      encryptionKey: "test-key",
+    });
+    expect(res.headers.get("location")).toMatch(/\/dashboard\?connected=1/);
   });
 
   it("event_create_failed: não persiste token e redireciona com erro", async () => {

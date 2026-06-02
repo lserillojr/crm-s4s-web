@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import crypto from "node:crypto";
 import { auth } from "@/auth";
+import { getTenantIdByEmail } from "@/lib/auth/onboarding-guard";
 import { buildGoogleAuthUrl } from "@/lib/oauth/google";
 
 /**
@@ -16,8 +17,13 @@ function getOrigin(req: NextRequest): string {
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.tenantId) {
-    return Response.redirect(new URL("/login?next=/wizard/calendar", getOrigin(req)));
+  // Resolve o tenant pela fonte autoritativa: a conexão do Google acontece logo
+  // APÓS o provisionamento, quando o token ainda está defasado (tenantId=null).
+  const tenantId =
+    session?.user?.tenantId ??
+    (session?.user?.email ? await getTenantIdByEmail(session.user.email) : null);
+  if (!tenantId) {
+    return Response.redirect(new URL("/login?next=/dashboard", getOrigin(req)));
   }
 
   const url = new URL(req.url);
