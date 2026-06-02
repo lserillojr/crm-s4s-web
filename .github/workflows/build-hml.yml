@@ -1,0 +1,49 @@
+# Build da imagem HML do crm-s4s-web.
+# HML é standalone (Portainer no Hetzner CX32), fora do CI de deploy do DEV (Swarm).
+# As URLs públicas dos launchers SSO/embed são inlinadas no build pelo Next (build-args),
+# então o HML precisa de uma imagem PRÓPRIA com as URLs hml-* (a do DEV tem dev-* baked).
+# Este workflow só builda + faz push pro GHCR (tags hml-*). O deploy no Portainer HML é manual/Claude.
+name: Build HML
+
+on:
+  push:
+    branches: [ci/web-hml-build]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/lserillojr/crm-s4s-web
+
+jobs:
+  build-hml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push HML image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:hml-latest
+            ${{ env.IMAGE }}:hml-${{ github.sha }}
+          # URLs HML inlinadas no bundle (≠ DEV). Runtime envs (auth/n8n/db) vão no compose do HML.
+          build-args: |
+            NEXT_PUBLIC_CHATWOOT_URL=https://hml-chat.staff4solutions.com.br
+            NEXT_PUBLIC_ODOO_URL=https://hml-backoffice.staff4solutions.com.br
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
