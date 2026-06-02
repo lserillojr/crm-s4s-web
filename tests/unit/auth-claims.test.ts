@@ -35,6 +35,21 @@ describe("mapJwtClaims", () => {
     const token = { sub: "u1", tenantId: "t", role: "owner" };
     expect(mapJwtClaims(token, undefined)).toEqual(token);
   });
+
+  it("captura o sub REAL do Keycloak (profile.sub) em keycloakSub", () => {
+    // O token.sub do NextAuth NÃO é o sub OIDC do Keycloak; o provisionamento
+    // (oauth_uid no Odoo) precisa do sub real, que vem em profile.sub.
+    const out = mapJwtClaims(
+      { sub: "nextauth-interno-xyz" },
+      { tenant_id: "t", sub: "c0a0b7ac-8fef-4706-834c-cd676478969f" },
+    );
+    expect(out.keycloakSub).toBe("c0a0b7ac-8fef-4706-834c-cd676478969f");
+  });
+
+  it("sem sub na fonte → keycloakSub fica undefined (mock/credentials)", () => {
+    const out = mapJwtClaims({ sub: "u1" }, { tenant_id: "t" });
+    expect(out.keycloakSub).toBeUndefined();
+  });
 });
 
 describe("mapSession", () => {
@@ -57,6 +72,15 @@ describe("mapSession", () => {
     const token = { sub: "db635b6f-78f3-4e00-827f-b5f1dfb14975" } as JWT;
     const s = mapSession(baseSession(), token);
     expect(s.user.sub).toBe("db635b6f-78f3-4e00-827f-b5f1dfb14975");
+  });
+
+  it("PREFERE o keycloakSub (sub OIDC real) sobre o token.sub do NextAuth", () => {
+    const token = {
+      sub: "nextauth-interno-xyz",
+      keycloakSub: "c0a0b7ac-8fef-4706-834c-cd676478969f",
+    } as JWT;
+    const s = mapSession(baseSession(), token);
+    expect(s.user.sub).toBe("c0a0b7ac-8fef-4706-834c-cd676478969f");
   });
 
   it("sub ausente no token vira undefined (não quebra)", () => {

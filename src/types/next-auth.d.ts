@@ -16,5 +16,7 @@ declare module "next-auth/jwt" {
     tenantId?: string | null;
     role?: string;
     phoneNumber?: string;
+    /** `sub` OIDC real do Keycloak (≠ token.sub do NextAuth). Usado p/ SSO. */
+    keycloakSub?: string;
   }
 }
