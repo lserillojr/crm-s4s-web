@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Card,
@@ -20,10 +19,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { WizardActions } from "@/components/wizard/wizard-actions";
-import {
-  GcalConnectButton,
-  type GcalConnectState,
-} from "@/components/wizard/gcal-connect-button";
 import { useWizardStore } from "@/lib/wizard/store";
 import {
   calendarStepSchema,
@@ -38,27 +33,11 @@ const TIMEZONE_OPTIONS = [
   { value: "America/Belem", label: "Belém (GMT-3) — Pará/Amapá" },
 ] as const;
 
-function deriveCalendarName(calId: string | null): string | null {
-  if (!calId) return null;
-  return calId === "primary" ? "Calendário principal" : calId;
-}
-
-function CalendarStepInner() {
+export default function CalendarStepPage() {
   const router = useRouter();
-  const search = useSearchParams();
   const stored = useWizardStore((s) => s.data.calendar);
   const setCalendar = useWizardStore((s) => s.setCalendar);
   const markCompleted = useWizardStore((s) => s.markCompleted);
-
-  const [state, setState] = useState<GcalConnectState>(() => {
-    if (stored.connected) return "connected";
-    if (stored.skipped) return "skipped";
-    return "idle";
-  });
-  const [calendarName, setCalendarName] = useState<string | null>(
-    stored.calendarName ?? null
-  );
-  const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
 
   const form = useForm<CalendarStepData>({
     resolver: zodResolver(calendarStepSchema),
@@ -72,56 +51,14 @@ function CalendarStepInner() {
     },
   });
 
-  // Pós-callback: lê ?connected=1 ou ?error=...
-  useEffect(() => {
-    const error = search.get("error");
-    const connected = search.get("connected");
-    if (error) {
-      setState("error");
-      setErrorCode(error);
-      return;
-    }
-    if (connected === "1") {
-      fetch("/api/tenant/me")
-        .then((r) => r.json())
-        .then((info: { calendarId: string | null; connected: boolean }) => {
-          if (info.connected) {
-            const calId =
-              info.calendarId ?? search.get("calendar_id") ?? "primary";
-            const name = deriveCalendarName(calId);
-            setCalendar({
-              ...form.getValues(),
-              connected: true,
-              calendarId: calId,
-              calendarName: name,
-              skipped: false,
-            });
-            setCalendarName(name);
-            setState("connected");
-          }
-        })
-        .catch(() => setState("error"));
-    }
-  // setCalendar é stable ref do Zustand selector; form.getValues() lê o ref atual
-  // do RHF — nenhum risco de stale closure aqui. Effect roda apenas quando o
-  // ?connected= ou ?error= muda na URL.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
-
+  // A conexão do Google é feita LOGO APÓS criar a conta (tela de "Tudo pronto"),
+  // não aqui: durante o wizard ainda não existe tenant pra guardar os tokens.
+  // Este passo só captura o fuso horário (usado pra calcular os slots).
   const onSubmit = (values: CalendarStepData) => {
-    setCalendar({
-      ...values,
-      connected: state === "connected",
-      skipped: state === "skipped",
-    });
+    setCalendar({ ...values, connected: false, skipped: false });
     markCompleted("calendar");
     const next = nextStepSlug("calendar");
     if (next) router.push(`/wizard/${next}`);
-  };
-
-  const onSkip = () => {
-    setState("skipped");
-    setCalendar({ ...form.getValues(), connected: false, skipped: true });
   };
 
   return (
@@ -132,13 +69,14 @@ function CalendarStepInner() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <GcalConnectButton
-              state={state}
-              calendarName={calendarName}
-              errorCode={errorCode}
-              onSkip={onSkip}
-              returnTo="/wizard/calendar"
-            />
+            <div className="rounded-md border border-s4s-blue/30 bg-s4s-blue/5 p-3 text-sm text-muted-foreground">
+              Você conecta seu Google Calendar{" "}
+              <span className="font-medium text-foreground">
+                logo depois de criar a conta
+              </span>{" "}
+              — assim a IA marca reuniões direto na sua agenda. Por enquanto, só
+              confirme seu fuso horário.
+            </div>
 
             <FormField
               control={form.control}
@@ -172,22 +110,5 @@ function CalendarStepInner() {
         </Form>
       </CardContent>
     </Card>
-  );
-}
-
-export default function CalendarStepPage() {
-  return (
-    <Suspense
-      fallback={
-        <Card>
-          <CardHeader>
-            <CardTitle>IA pode marcar reuniões na sua agenda?</CardTitle>
-          </CardHeader>
-          <CardContent>Carregando…</CardContent>
-        </Card>
-      }
-    >
-      <CalendarStepInner />
-    </Suspense>
   );
 }

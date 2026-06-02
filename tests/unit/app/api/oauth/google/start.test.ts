@@ -10,6 +10,10 @@ const { cookieJar } = vi.hoisted(() => {
 vi.mock("@/auth", () => ({
   auth: vi.fn(),
 }));
+const tenantByEmailMock = vi.fn();
+vi.mock("@/lib/auth/onboarding-guard", () => ({
+  getTenantIdByEmail: (e: string) => tenantByEmailMock(e),
+}));
 // Mock cookies()
 vi.mock("next/headers", () => ({
   cookies: () => ({
@@ -26,6 +30,8 @@ beforeEach(() => {
   process.env.GOOGLE_CLIENT_ID = "test-client-id";
   process.env.GOOGLE_REDIRECT_URI = "https://app.example.com/api/oauth/google/callback";
   vi.mocked(auth).mockReset();
+  tenantByEmailMock.mockReset();
+  tenantByEmailMock.mockResolvedValue(null);
 });
 
 describe("GET /api/oauth/google/start", () => {
@@ -45,6 +51,16 @@ describe("GET /api/oauth/google/start", () => {
     expect(res.headers.get("location")).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth\?/);
     expect(cookieJar.get("gcal_oauth_state")).toMatch(/^[a-f0-9]{64}$/);
     expect(cookieJar.get("gcal_oauth_return_to")).toBe("/wizard/calendar");
+  });
+
+  it("resolve tenant do banco quando o token vem sem tenantId (pós-provisionamento)", async () => {
+    vi.mocked(auth).mockResolvedValue({ user: { email: "mei@x.dev" } } as never);
+    tenantByEmailMock.mockResolvedValue("t-db");
+    const req = new Request("https://app.example.com/api/oauth/google/start?returnTo=/dashboard");
+    const res = await GET(req as never);
+    expect(res.headers.get("location")).toMatch(/^https:\/\/accounts\.google\.com/);
+    expect(cookieJar.get("gcal_oauth_return_to")).toBe("/dashboard");
+    expect(tenantByEmailMock).toHaveBeenCalledWith("mei@x.dev");
   });
 
   it("respeita returnTo query param", async () => {
