@@ -59,12 +59,7 @@ export default async function DashboardLayout({
               <IntegrationHealthBanner health={health} />
             </div>
           )}
-          {/* scrollbar-gutter:stable reserva a calha da barra de rolagem
-              permanentemente. Sem isso, a barra aparecendo/sumindo muda a largura
-              do iframe em ~15px → o ResizeObserver do kanban Odoo (única view
-              sensível a tamanho) recalcula em loop e trava a thread compartilhada
-              (dev-app e dev-backoffice são same-site → mesmo processo). Ver #16. */}
-          <div className="min-h-0 flex-1 overflow-auto [scrollbar-gutter:stable]">
+          <div className="min-h-0 flex-1 overflow-auto">
             <QueryProvider>{children}</QueryProvider>
           </div>
         </main>
