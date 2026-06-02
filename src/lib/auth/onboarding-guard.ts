@@ -1,5 +1,4 @@
 import { sql } from "drizzle-orm";
-import { db } from "@/lib/db";
 
 /**
  * Decide se um usuário AUTENTICADO deve ser mandado de volta ao onboarding.
@@ -30,6 +29,11 @@ export async function getTenantIdByEmail(
 ): Promise<string | null> {
   const key = email?.trim();
   if (!key) return null;
+  // Import dinâmico: `@/lib/db` instancia o cliente Postgres no load do módulo e
+  // exige DATABASE_URL. Carregar sob demanda mantém este módulo (e quem o importa,
+  // como o gate de /api) utilizável em ambientes sem banco — ex.: testes de route
+  // que passam sessão já com tenant e nunca chegam a consultar o banco.
+  const { db } = await import("@/lib/db");
   const rows = (await db.execute(sql`
     SELECT tenant_id FROM users WHERE lower(email) = lower(${key}) LIMIT 1
   `)) as unknown as Array<{ tenant_id: string | null }>;

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getTenantIdByEmail } from "@/lib/auth/onboarding-guard";
 import { getPool } from "@/lib/db/pool";
 import { getIntegrationHealth } from "@/lib/integrations/get-integration-health";
 import { GoogleCalendarCard } from "@/components/integrations/google-calendar-card";
@@ -14,10 +15,14 @@ export default async function IntegracoesPage({
   searchParams: { connected?: string; error?: string };
 }) {
   const session = await auth();
-  if (!session?.user?.tenantId) {
+  // Token defasado pós-provisionamento → resolve pela fonte autoritativa (banco).
+  const tenantId =
+    session?.user?.tenantId ??
+    (session?.user?.email ? await getTenantIdByEmail(session.user.email) : null);
+  if (!tenantId) {
     redirect("/login?next=/settings/integracoes");
   }
-  const health = await getIntegrationHealth(getPool(), session.user.tenantId);
+  const health = await getIntegrationHealth(getPool(), tenantId);
 
   return (
     <div className="container space-y-6 py-8">
