@@ -1,6 +1,11 @@
+import { redirect } from "next/navigation";
 import { signOut, auth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { IntegrationHealthBanner } from "@/components/integrations/integration-health-banner";
+import {
+  needsOnboarding,
+  getTenantIdByEmail,
+} from "@/lib/auth/onboarding-guard";
 import { getPool } from "@/lib/db/pool";
 import {
   getIntegrationHealth,
@@ -21,10 +26,34 @@ export default async function DashboardLayout({
   }
 
   const session = await auth();
-  let health: IntegrationHealth | null = null;
-  if (session?.user?.tenantId) {
+
+  // Guarda de onboarding: um user autenticado SEM tenant (cadastro nunca
+  // finalizado — o provisionamento jamais rodou) não pode entrar no shell.
+  // Sem tenant, Atendimento/Config batem em 401 e o Funil cai na company
+  // default do Odoo (dados de outro cliente). Mandamos finalizar o wizard.
+  // O `tenantId` da sessão pode estar defasado logo após o provisionamento, por
+  // isso, na sua ausência, consultamos a fonte autoritativa (banco) antes de
+  // decidir — e só redirecionamos se AMBAS as fontes estiverem sem tenant.
+  let tenantId = session?.user?.tenantId ?? null;
+  if (session?.user && !tenantId) {
+    let lookupOk = true;
     try {
-      health = await getIntegrationHealth(getPool(), session.user.tenantId);
+      tenantId = await getTenantIdByEmail(session.user.email);
+    } catch {
+      lookupOk = false; // DB indisponível: fail-open, não tranca o user fora.
+    }
+    if (
+      lookupOk &&
+      needsOnboarding({ sessionTenantId: session.user.tenantId, dbTenantId: tenantId })
+    ) {
+      redirect("/wizard");
+    }
+  }
+
+  let health: IntegrationHealth | null = null;
+  if (tenantId) {
+    try {
+      health = await getIntegrationHealth(getPool(), tenantId);
     } catch {
       health = null;
     }

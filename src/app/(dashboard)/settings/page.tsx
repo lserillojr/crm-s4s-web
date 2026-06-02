@@ -1,12 +1,17 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { getTenantIdByEmail } from "@/lib/auth/onboarding-guard";
 import { SettingsHub } from "@/components/settings/settings-hub";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const session = await auth();
-  if (!session?.user?.tenantId) {
+  // Token defasado pós-provisionamento → resolve pela fonte autoritativa (banco).
+  const tenantId =
+    session?.user?.tenantId ??
+    (session?.user?.email ? await getTenantIdByEmail(session.user.email) : null);
+  if (!tenantId) {
     redirect("/login?next=/settings");
   }
 
