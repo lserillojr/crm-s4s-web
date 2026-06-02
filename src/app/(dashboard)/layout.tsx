@@ -6,6 +6,8 @@ import {
   needsOnboarding,
   getTenantIdByEmail,
 } from "@/lib/auth/onboarding-guard";
+import { buildKeycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
+import { env } from "@/lib/env";
 import { getPool } from "@/lib/db/pool";
 import {
   getIntegrationHealth,
@@ -22,7 +24,18 @@ export default async function DashboardLayout({
 }) {
   async function sair() {
     "use server";
-    await signOut({ redirectTo: "/login" });
+    // Logout federado: além de limpar o cookie local, termina a sessão SSO do
+    // Keycloak (senão o próximo login entra direto e os embeds Odoo/Chatwoot
+    // reusam a sessão). O end_session ainda desloga Odoo/Chatwoot via
+    // back-channel. Sem config Keycloak, cai no logout local.
+    const logoutUrl = buildKeycloakLogoutUrl({
+      issuer: env.AUTH_KEYCLOAK_ISSUER,
+      clientId: env.AUTH_KEYCLOAK_ID,
+      appBaseUrl:
+        process.env.AUTH_URL ?? "https://dev-app.staff4solutions.com.br",
+    });
+    await signOut({ redirect: false });
+    redirect(logoutUrl ?? "/login");
   }
 
   const session = await auth();
