@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   atendimentoUrl,
+  atendimentoConversationUrl,
   funilUrl,
   contatosUrl,
   getEmbedTargets,
@@ -20,6 +21,20 @@ describe("embed-targets builders", () => {
   it("contatosUrl aponta pros contatos do Odoo com embed", () => {
     expect(contatosUrl("https://odoo.example.com/")).toBe(
       "https://odoo.example.com/odoo/contacts?embed=s4s",
+    );
+  });
+  it("atendimentoConversationUrl monta o deep-link do Chatwoot com embed", () => {
+    expect(
+      atendimentoConversationUrl("https://chat.example.com", 36, 999),
+    ).toBe(
+      "https://chat.example.com/app/accounts/36/conversations/999?embed=s4s",
+    );
+  });
+  it("atendimentoConversationUrl tolera barra final na base", () => {
+    expect(
+      atendimentoConversationUrl("https://chat.example.com/", 36, 999),
+    ).toBe(
+      "https://chat.example.com/app/accounts/36/conversations/999?embed=s4s",
     );
   });
 });
