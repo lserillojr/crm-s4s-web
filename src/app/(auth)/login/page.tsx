@@ -25,7 +25,7 @@ export default function LoginPage() {
       <CardContent>
         <form action={entrar}>
           <Button type="submit" className="w-full" data-testid="login-keycloak">
-            Entrar com S4S
+            Entrar
           </Button>
         </form>
       </CardContent>
