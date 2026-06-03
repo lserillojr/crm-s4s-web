@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { slugify, buildProvisionPayload } from "@/lib/onboarding/contract";
+import { slugify, tenantSlug, buildProvisionPayload } from "@/lib/onboarding/contract";
 import { wizardDefaults } from "@/lib/wizard/schemas";
 
 describe("slugify", () => {
@@ -12,6 +12,28 @@ describe("slugify", () => {
   it("fallback determinístico quando vazia após normalizar", () => {
     const out = slugify("!!!");
     expect(out).toMatch(/^mei-[a-z0-9]{6}$/);
+  });
+});
+
+describe("tenantSlug", () => {
+  it("anexa um sufixo derivado da idempotency_key (slug único)", () => {
+    // base do nome + 6 hex da chave → dois MEIs com o mesmo nome NÃO colidem.
+    expect(tenantSlug("Salão Maria", "a2b74f6a-a78e-4229-9e50-5a0f8e5052a0")).toBe(
+      "salao-maria-a2b74f",
+    );
+  });
+
+  it("é determinístico pra mesma chave (idempotência) e único entre chaves", () => {
+    const k1 = "11111111-1111-4111-8111-111111111111";
+    const k2 = "22222222-2222-4222-8222-222222222222";
+    expect(tenantSlug("Escola X", k1)).toBe(tenantSlug("Escola X", k1));
+    expect(tenantSlug("Escola X", k1)).not.toBe(tenantSlug("Escola X", k2));
+  });
+
+  it("nome vazio cai no fallback mei-* + sufixo", () => {
+    expect(tenantSlug("!!!", "abcdef00-1111-4111-8111-111111111111")).toMatch(
+      /^mei-[a-z0-9]{6}-abcdef$/,
+    );
   });
 });
 
@@ -34,7 +56,7 @@ describe("buildProvisionPayload", () => {
     const p = buildProvisionPayload(base);
     expect(p.idempotency_key).toBe(base.idempotencyKey);
     expect(p.user).toEqual({ email: "maria@teste.dev", name: "Maria Silva", password_hash: null, sub: "" });
-    expect(p.tenant.slug).toBe("salao-maria");
+    expect(p.tenant.slug).toBe("salao-maria-111111");
     expect(p.tenant.vertical).toBe("beleza");
     expect(p.tenant.company_name).toBe("Salão Maria");
     expect(p.tenant.wa_provider).toBe("evolution");

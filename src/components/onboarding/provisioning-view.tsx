@@ -16,13 +16,36 @@ export function ProvisioningView({
   status,
   error,
   refreshing,
+  timedOut = false,
   onRefresh,
 }: {
   status: StatusResult | null;
   error: string | null;
   refreshing: boolean;
+  timedOut?: boolean;
   onRefresh: () => void;
 }) {
+  // Preso em "Preparando..." além do timeout → quase sempre o Worker falhou e
+  // não conseguiu gravar o status. Mostra erro gracioso em vez de spinner eterno.
+  if (timedOut) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Demorou mais que o esperado</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm">
+            Não conseguimos confirmar a ativação da sua conta. Pode ter ocorrido
+            um problema. Tente de novo — se continuar, fale com o suporte.
+          </p>
+          <Button type="button" onClick={onRefresh} disabled={refreshing}>
+            Tentar de novo
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!status) {
     return (
       <Card>

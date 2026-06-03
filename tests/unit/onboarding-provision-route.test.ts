@@ -55,7 +55,8 @@ describe("POST /api/onboarding/provision", () => {
     expect(await resp.json()).toMatchObject({ audit_id: "a1", status: "in_progress" });
     const payload = provisionMock.mock.calls[0]![0];
     expect(payload.idempotency_key).toMatch(/^[0-9a-f-]{36}$/);
-    expect(payload.tenant.slug).toBe("salao-maria");
+    // slug agora leva sufixo único derivado da idempotency_key (anti-colisão).
+    expect(payload.tenant.slug).toMatch(/^salao-maria-[0-9a-f]{6}$/);
     expect(saveStateMock).toHaveBeenCalledWith(
       "maria@teste.dev",
       expect.objectContaining({ auditId: "a1", idempotencyKey: payload.idempotency_key }),
