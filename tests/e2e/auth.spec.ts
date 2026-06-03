@@ -8,7 +8,7 @@ test.describe("auth — rotas protegidas e login", () => {
     await expect(page).toHaveURL(/\/login(\?|$)/);
   });
 
-  test("/login mostra o botão Entrar com S4S", async ({ page }) => {
+  test("/login mostra o botão Entrar", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByTestId("login-keycloak")).toBeVisible();
   });
