@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
 import { signOut, auth } from "@/auth";
-import { Button } from "@/components/ui/button";
 import { IntegrationHealthBanner } from "@/components/integrations/integration-health-banner";
 import {
   needsOnboarding,
   getTenantIdByEmail,
 } from "@/lib/auth/onboarding-guard";
 import { buildKeycloakLogoutUrl } from "@/lib/auth/keycloak-logout";
+import { getEmbedLogoutTargets } from "@/lib/auth/embed-logout-targets";
+import { LogoutButton } from "@/components/shell/logout-button";
 import { env } from "@/lib/env";
 import { getPool } from "@/lib/db/pool";
 import {
@@ -24,10 +25,11 @@ export default async function DashboardLayout({
 }) {
   async function sair() {
     "use server";
-    // Logout federado: além de limpar o cookie local, termina a sessão SSO do
-    // Keycloak (senão o próximo login entra direto e os embeds Odoo/Chatwoot
-    // reusam a sessão). O end_session ainda desloga Odoo/Chatwoot via
-    // back-channel. Sem config Keycloak, cai no logout local.
+    // Logout federado: limpa o cookie local (NextAuth) e termina a sessão SSO do
+    // Keycloak. ATENÇÃO: o end_session do Keycloak NÃO desloga Odoo/Chatwoot
+    // (os clients não têm logout URL e o auth_oauth do Odoo não implementa
+    // back-channel). Por isso o <LogoutButton> client-side encerra as sessões
+    // dos embeds (same-site, via iframe) ANTES de chamar esta action.
     const logoutUrl = buildKeycloakLogoutUrl({
       issuer: env.AUTH_KEYCLOAK_ISSUER,
       clientId: env.AUTH_KEYCLOAK_ID,
@@ -82,11 +84,13 @@ export default async function DashboardLayout({
           {userName && (
             <span className="text-s4s-blue">Bem-vindo, {userName} 👋</span>
           )}
-          <form action={sair}>
-            <Button type="submit" variant="ghost" size="sm" data-testid="logout">
-              Sair
-            </Button>
-          </form>
+          <LogoutButton
+            targets={getEmbedLogoutTargets({
+              odoo: process.env.NEXT_PUBLIC_ODOO_URL,
+              chatwoot: process.env.NEXT_PUBLIC_CHATWOOT_URL,
+            })}
+            onFederatedLogout={sair}
+          />
         </div>
       </header>
       <div className="flex min-h-0 flex-1">
