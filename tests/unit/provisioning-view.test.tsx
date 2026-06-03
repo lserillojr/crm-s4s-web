@@ -71,6 +71,16 @@ describe("ProvisioningView", () => {
     expect(screen.getByText(/Carregando/i)).toBeInTheDocument();
   });
 
+  it("timedOut: erro gracioso com 'tentar de novo' (não spinner eterno)", () => {
+    view(
+      { audit_id: "a1", status: "in_progress", completed_steps: [] },
+      { timedOut: true },
+    );
+    expect(screen.getByText(/Demorou mais que o esperado/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tentar de novo/i })).toBeInTheDocument();
+    expect(screen.queryByText(/Preparando sua conta/i)).not.toBeInTheDocument();
+  });
+
   it("success: mostra os launchers SSO (atendimento + backoffice)", () => {
     view({
       audit_id: "a1",

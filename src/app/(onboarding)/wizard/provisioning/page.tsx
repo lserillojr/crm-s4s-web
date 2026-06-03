@@ -13,7 +13,7 @@ import { ProvisioningView } from "@/components/onboarding/provisioning-view";
  */
 function ProvisioningInner() {
   const auditId = useSearchParams().get("audit_id");
-  const { status, error, loading, refresh } = useProvisioningStatus(auditId);
+  const { status, error, loading, timedOut, refresh } = useProvisioningStatus(auditId);
 
   if (!auditId) {
     return (
@@ -28,6 +28,7 @@ function ProvisioningInner() {
       status={status}
       error={error}
       refreshing={loading}
+      timedOut={timedOut}
       onRefresh={() => void refresh()}
     />
   );

@@ -83,6 +83,22 @@ export function slugify(input: string): string {
   return `mei-${rand}`;
 }
 
+/**
+ * Slug ÚNICO do tenant: base do nome do negócio + sufixo de 6 hex da
+ * `idempotency_key`. A coluna `tenants.slug` é UNIQUE — sem o sufixo, dois MEIs
+ * com o mesmo nome ("Salão da Maria") colidiam e o provisionamento quebrava no
+ * INSERT. Derivar da idempotency_key (não de random) mantém o slug ESTÁVEL por
+ * tentativa (re-submit replica o mesmo), e único entre tentativas distintas.
+ */
+export function tenantSlug(businessName: string, idempotencyKey: string): string {
+  const base = slugify(businessName);
+  const suffix = (idempotencyKey ?? "")
+    .replace(/[^a-f0-9]/gi, "")
+    .slice(0, 6)
+    .toLowerCase();
+  return suffix ? `${base}-${suffix}` : base;
+}
+
 export interface BuildPayloadInput {
   wizard: WizardData;
   user: { email: string; name: string | null; sub?: string | null };
@@ -101,7 +117,7 @@ export function buildProvisionPayload(input: BuildPayloadInput): ProvisionReques
     idempotency_key: idempotencyKey,
     user: { email: user.email, name: user.name ?? "", password_hash: null, sub: user.sub ?? "" },
     tenant: {
-      slug: slugify(businessName),
+      slug: tenantSlug(businessName, idempotencyKey),
       vertical: wizard.kb.vertical ?? "outro",
       company_name: businessName,
       wa_provider: wizard.whatsapp.provider ?? "evolution",

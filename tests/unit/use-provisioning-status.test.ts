@@ -54,4 +54,33 @@ describe("useProvisioningStatus", () => {
     renderHook(() => useProvisioningStatus(null, { intervalMs: 1000 }));
     expect(fetchStatusMock).not.toHaveBeenCalled();
   });
+
+  it("após o timeout em in_progress, expõe timedOut e para o polling", async () => {
+    fetchStatusMock.mockResolvedValue({ audit_id: "a1", status: "in_progress", completed_steps: [] });
+    const { result } = renderHook(() =>
+      useProvisioningStatus("a1", { intervalMs: 1000, timeoutMs: 3000 }),
+    );
+    await waitFor(() => expect(result.current.status?.status).toBe("in_progress"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    await waitFor(() => expect(result.current.timedOut).toBe(true));
+    const calls = fetchStatusMock.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(fetchStatusMock.mock.calls.length).toBe(calls); // parou de pollar
+  });
+
+  it("awaiting_qr_scan NÃO dá timeout (espera o usuário escanear)", async () => {
+    fetchStatusMock.mockResolvedValue({ audit_id: "a1", status: "awaiting_qr_scan", completed_steps: [], qr_code_url: "q" });
+    const { result } = renderHook(() =>
+      useProvisioningStatus("a1", { intervalMs: 1000, timeoutMs: 3000 }),
+    );
+    await waitFor(() => expect(result.current.status?.status).toBe("awaiting_qr_scan"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(result.current.timedOut).toBe(false);
+  });
 });
