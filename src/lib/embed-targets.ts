@@ -35,6 +35,17 @@ export function atendimentoUrl(chatwootBase: string): string {
   return withEmbed(`${stripTrailingSlash(chatwootBase)}/`);
 }
 
+/** Deep-link pra uma conversa específica do Chatwoot, dentro do embed do portal. */
+export function atendimentoConversationUrl(
+  chatwootBase: string,
+  conta: number,
+  conversa: number,
+): string {
+  return withEmbed(
+    `${stripTrailingSlash(chatwootBase)}/app/accounts/${conta}/conversations/${conversa}`,
+  );
+}
+
 export function funilUrl(odooBase: string): string {
   // Odoo 19 não expõe path "crm" (/odoo/crm dá 404). O pipeline do CRM só é
   // acessível pela action via xmlid. Contatos usa /odoo/contacts (path nativo).
