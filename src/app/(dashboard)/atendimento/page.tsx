@@ -16,14 +16,17 @@ export default function AtendimentoPage({
 }: {
   searchParams: { conversa?: string; conta?: string };
 }) {
-  const base = process.env.NEXT_PUBLIC_CHATWOOT_URL;
+  // fallback = raiz do Chatwoot já validada por cleanBase (getEmbedTargets); só montamos
+  // o deep-link se essa mesma validação passou — evita iframe quebrado com base inválida.
+  const fallback = getEmbedTargets().atendimento;
+  const base = fallback ? process.env.NEXT_PUBLIC_CHATWOOT_URL : null;
   const conversa = parseId(searchParams.conversa);
   const conta = parseId(searchParams.conta);
 
   const src =
     base && conversa && conta
       ? atendimentoConversationUrl(base, conta, conversa)
-      : getEmbedTargets().atendimento;
+      : fallback;
 
   return (
     <div className="h-full">
