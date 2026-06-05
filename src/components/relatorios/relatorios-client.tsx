@@ -43,10 +43,12 @@ export function RelatoriosClient() {
       </div>
 
       {isLoading && (
-        <p className="text-muted-foreground">Carregando seus números…</p>
+        <p role="status" className="text-muted-foreground">
+          Carregando seus números…
+        </p>
       )}
       {isError && (
-        <p className="text-muted-foreground">
+        <p role="alert" className="text-muted-foreground">
           Não foi possível carregar os relatórios agora. Tente atualizar a página.
         </p>
       )}

@@ -23,6 +23,14 @@ describe("frases MEI", () => {
     expect(fraseTempoResposta(150)).toBe("Seus clientes esperaram só 2,5 minutos");
   });
 
+  it("tempo de resposta: singular '1 minuto' no limite de 60s", () => {
+    expect(fraseTempoResposta(60)).toBe("Seus clientes esperaram só 1 minuto");
+  });
+
+  it("tempo de resposta: singular '1 segundo'", () => {
+    expect(fraseTempoResposta(1)).toBe("Seus clientes esperaram só 1 segundo");
+  });
+
   it("agendados fala em 'horários'", () => {
     expect(fraseAgendados(14)).toBe("A IA marcou 14 horários na sua agenda");
   });

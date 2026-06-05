@@ -9,9 +9,13 @@ export function fraseConversas(n: number): string {
 }
 
 export function fraseTempoResposta(segundos: number): string {
-  if (segundos < 60) return `Seus clientes esperaram só ${segundos} segundos`;
+  if (segundos < 60) {
+    const unidade = segundos === 1 ? "segundo" : "segundos";
+    return `Seus clientes esperaram só ${segundos} ${unidade}`;
+  }
   const min = (segundos / 60).toFixed(1).replace(".", ",").replace(",0", "");
-  return `Seus clientes esperaram só ${min} minutos`;
+  const unidade = min === "1" ? "minuto" : "minutos";
+  return `Seus clientes esperaram só ${min} ${unidade}`;
 }
 
 export function fraseAgendados(n: number): string {
