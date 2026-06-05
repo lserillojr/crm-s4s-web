@@ -42,6 +42,13 @@ export default async function DashboardLayout({
 
   const session = await auth();
 
+  // Backstop de autenticação do grupo (dashboard): anônimo nunca renderiza o
+  // shell. O middleware (route-guard) já redireciona no edge, mas listar rota a
+  // rota é frágil — aqui qualquer tela nova do grupo fica protegida por padrão.
+  if (!session?.user) {
+    redirect("/login");
+  }
+
   // Guarda de onboarding: um user autenticado SEM tenant (cadastro nunca
   // finalizado — o provisionamento jamais rodou) não pode entrar no shell.
   // Sem tenant, Atendimento/Config batem em 401 e o Funil cai na company

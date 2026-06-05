@@ -8,6 +8,11 @@ describe("isProtectedPath", () => {
     ["/wizard", true],
     ["/wizard/whatsapp", true],
     ["/settings/working-hours", true],
+    // todas as telas do grupo (dashboard) exigem sessão (senão vaza o shell)
+    ["/relatorios", true],
+    ["/atendimento", true],
+    ["/funil", true],
+    ["/contatos", true],
   ])("%s é protegido", (path, expected) => {
     expect(isProtectedPath(path)).toBe(expected);
   });
