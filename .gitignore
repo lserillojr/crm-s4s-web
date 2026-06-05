@@ -55,3 +55,6 @@ tests/e2e/.auth/
 # drizzle (introspect output regenerável)
 /drizzle/*.sql
 /drizzle/meta/
+
+# Git worktrees locais (isolamento de feature)
+.worktrees/
