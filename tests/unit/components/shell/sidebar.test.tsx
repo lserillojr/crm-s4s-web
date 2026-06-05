@@ -12,13 +12,20 @@ afterEach(() => {
 });
 
 describe("Sidebar", () => {
-  it("renderiza os 5 itens de navegação de topo", () => {
+  it("renderiza os 6 itens de navegação de topo", () => {
     mockPathname.mockReturnValue("/dashboard");
     render(<Sidebar />);
     for (const item of NAV_ITEMS) {
       expect(screen.getByText(item.label)).toBeInTheDocument();
     }
-    expect(NAV_ITEMS).toHaveLength(5);
+    expect(NAV_ITEMS).toHaveLength(6);
+  });
+
+  it("inclui o item Relatórios apontando para /relatorios", () => {
+    mockPathname.mockReturnValue("/dashboard");
+    render(<Sidebar />);
+    const link = screen.getByRole("link", { name: /Relatórios/ });
+    expect(link).toHaveAttribute("href", "/relatorios");
   });
 
   it("marca aria-current=page no item da rota atual", () => {
