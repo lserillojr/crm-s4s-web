@@ -7,6 +7,7 @@ import {
   Home,
   MessageSquare,
   Filter,
+  CalendarDays,
   BarChart3,
   Users,
   Settings,
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Início", icon: Home },
   { href: "/atendimento", label: "Atendimento", icon: MessageSquare },
   { href: "/funil", label: "Funil", icon: Filter },
+  { href: "/agenda", label: "Agenda", icon: CalendarDays },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/contatos", label: "Contatos", icon: Users },
   {

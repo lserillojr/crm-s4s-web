@@ -10,6 +10,7 @@ describe("isProtectedPath", () => {
     ["/settings/working-hours", true],
     // todas as telas do grupo (dashboard) exigem sessão (senão vaza o shell)
     ["/relatorios", true],
+    ["/agenda", true],
     ["/atendimento", true],
     ["/funil", true],
     ["/contatos", true],

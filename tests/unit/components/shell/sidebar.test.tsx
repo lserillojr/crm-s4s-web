@@ -12,13 +12,13 @@ afterEach(() => {
 });
 
 describe("Sidebar", () => {
-  it("renderiza os 6 itens de navegação de topo", () => {
+  it("renderiza os 7 itens de navegação de topo", () => {
     mockPathname.mockReturnValue("/dashboard");
     render(<Sidebar />);
     for (const item of NAV_ITEMS) {
       expect(screen.getByText(item.label)).toBeInTheDocument();
     }
-    expect(NAV_ITEMS).toHaveLength(6);
+    expect(NAV_ITEMS).toHaveLength(7);
   });
 
   it("inclui o item Relatórios apontando para /relatorios", () => {
@@ -26,6 +26,13 @@ describe("Sidebar", () => {
     render(<Sidebar />);
     const link = screen.getByRole("link", { name: /Relatórios/ });
     expect(link).toHaveAttribute("href", "/relatorios");
+  });
+
+  it("inclui o item Agenda apontando para /agenda", () => {
+    mockPathname.mockReturnValue("/dashboard");
+    render(<Sidebar />);
+    const link = screen.getByRole("link", { name: /Agenda/ });
+    expect(link).toHaveAttribute("href", "/agenda");
   });
 
   it("marca aria-current=page no item da rota atual", () => {
