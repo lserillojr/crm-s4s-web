@@ -58,6 +58,23 @@ export function contatosUrl(odooBase: string): string {
   return withEmbed(`${stripTrailingSlash(odooBase)}/odoo/contacts`);
 }
 
+/** Deep-link pra seção Reports do Chatwoot, dentro do embed do portal. */
+export function relatoriosDetalhadoUrl(chatwootBase: string, conta: number): string {
+  return withEmbed(
+    `${stripTrailingSlash(chatwootBase)}/app/accounts/${conta}/reports/overview`,
+  );
+}
+
+/** Monta o src da aba Detalhado; null se a base for inválida ou faltar a conta. */
+export function buildDetalhadoSrc(
+  chatwootBase: string | null,
+  chatwootAccountId: number | null,
+): string | null {
+  const base = cleanBase(chatwootBase ?? undefined);
+  if (base === null || chatwootAccountId === null) return null;
+  return relatoriosDetalhadoUrl(base, chatwootAccountId);
+}
+
 export function getEmbedTargets(): EmbedTargets {
   const chatwootBase = cleanBase(process.env.NEXT_PUBLIC_CHATWOOT_URL);
   const odooBase = cleanBase(process.env.NEXT_PUBLIC_ODOO_URL);

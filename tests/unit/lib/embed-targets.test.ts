@@ -5,6 +5,8 @@ import {
   funilUrl,
   contatosUrl,
   getEmbedTargets,
+  relatoriosDetalhadoUrl,
+  buildDetalhadoSrc,
 } from "@/lib/embed-targets";
 
 describe("embed-targets builders", () => {
@@ -36,6 +38,37 @@ describe("embed-targets builders", () => {
     ).toBe(
       "https://chat.example.com/app/accounts/36/conversations/999?embed=s4s",
     );
+  });
+});
+
+describe("relatoriosDetalhadoUrl", () => {
+  it("monta a URL de Reports do Chatwoot com embed", () => {
+    expect(relatoriosDetalhadoUrl("https://chat.example.com", 2)).toBe(
+      "https://chat.example.com/app/accounts/2/reports/overview?embed=s4s",
+    );
+  });
+  it("remove barra final da base", () => {
+    expect(relatoriosDetalhadoUrl("https://chat.example.com/", 7)).toBe(
+      "https://chat.example.com/app/accounts/7/reports/overview?embed=s4s",
+    );
+  });
+});
+
+describe("buildDetalhadoSrc", () => {
+  const base = "https://chat.example.com";
+  it("retorna a URL quando base válida + conta presente", () => {
+    expect(buildDetalhadoSrc(base, 2)).toBe(
+      "https://chat.example.com/app/accounts/2/reports/overview?embed=s4s",
+    );
+  });
+  it("null quando base ausente", () => {
+    expect(buildDetalhadoSrc(null, 2)).toBeNull();
+  });
+  it("null quando conta ausente", () => {
+    expect(buildDetalhadoSrc(base, null)).toBeNull();
+  });
+  it("null quando base não é URL http(s)", () => {
+    expect(buildDetalhadoSrc("nao-e-url", 2)).toBeNull();
   });
 });
 
