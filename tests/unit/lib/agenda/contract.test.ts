@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { agendaItemSchema } from "@/lib/agenda/contract";
+import { agendaItemSchema, BlockInput, RescheduleInput } from "@/lib/agenda/contract";
 
 describe("agendaItemSchema", () => {
   it("aceita payload válido", () => {
@@ -40,5 +40,60 @@ describe("agendaItemSchema", () => {
 
   it("rejeita appointments ausente", () => {
     expect(() => agendaItemSchema.parse({ blocks: [] })).toThrow();
+  });
+});
+
+describe("BlockInput", () => {
+  const validBlock = {
+    start: "2026-06-10T09:00:00Z",
+    end: "2026-06-10T10:00:00Z",
+  };
+
+  it("aceita start/end datetime válidos sem reason", () => {
+    expect(() => BlockInput.parse(validBlock)).not.toThrow();
+  });
+
+  it("aceita reason opcional preenchido", () => {
+    expect(() => BlockInput.parse({ ...validBlock, reason: "Almoço" })).not.toThrow();
+  });
+
+  it("rejeita reason com mais de 120 caracteres", () => {
+    expect(() =>
+      BlockInput.parse({ ...validBlock, reason: "x".repeat(121) }),
+    ).toThrow();
+  });
+
+  it("rejeita start não-datetime (string livre)", () => {
+    expect(() =>
+      BlockInput.parse({ ...validBlock, start: "não-é-data" }),
+    ).toThrow();
+  });
+
+  it("rejeita end não-datetime", () => {
+    expect(() =>
+      BlockInput.parse({ ...validBlock, end: "2026-06-10" }),
+    ).toThrow();
+  });
+
+  it("rejeita sem start", () => {
+    expect(() => BlockInput.parse({ end: validBlock.end })).toThrow();
+  });
+});
+
+describe("RescheduleInput", () => {
+  it("aceita newSlotIso datetime válido", () => {
+    expect(() =>
+      RescheduleInput.parse({ newSlotIso: "2026-06-15T14:00:00Z" }),
+    ).not.toThrow();
+  });
+
+  it("rejeita newSlotIso não-datetime (data sem hora)", () => {
+    expect(() =>
+      RescheduleInput.parse({ newSlotIso: "2026-06-15" }),
+    ).toThrow();
+  });
+
+  it("rejeita newSlotIso ausente", () => {
+    expect(() => RescheduleInput.parse({})).toThrow();
   });
 });
