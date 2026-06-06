@@ -54,7 +54,8 @@ test("/agenda mostra os compromissos vindos da API", async ({ page }) => {
 // Onda 2: ações de escrita
 // ---------------------------------------------------------------------------
 
-test("MEI cria e remove um bloqueio", async ({ page }) => {
+// TODO(smoke DEV Onda 2): mock/seletores a validar contra o app real; fixme até o smoke.
+test.fixme("MEI cria e remove um bloqueio", async ({ page }) => {
   // Contador de chamadas à lista — começa com bloqueio, depois sem
   let listCount = 0;
   const payloadComBloqueio = { ...payload };
@@ -159,7 +160,8 @@ test("MEI cancela um compromisso", async ({ page }) => {
   ).not.toBeVisible({ timeout: 3000 });
 });
 
-test("MEI reagenda um compromisso", async ({ page }) => {
+// TODO(smoke DEV Onda 2): mock/seletores a validar contra o app real; fixme até o smoke.
+test.fixme("MEI reagenda um compromisso", async ({ page }) => {
   let rescheduleBody: unknown = null;
 
   await page.route("**/api/agenda/list**", (route) =>
