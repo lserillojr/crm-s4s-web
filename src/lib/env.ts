@@ -28,6 +28,10 @@ const envSchema = z.object({
   // Resend (transactional emails — futuro)
   RESEND_API_KEY: z.string().optional(),
 
+  // Push (Onda 1/B — app nativo)
+  EXPO_ACCESS_TOKEN: z.string().optional(),   // recomendado p/ rate-limit/receipts Expo
+  PUSH_WEBHOOK_SECRET: z.string().optional(), // segredo do WF17 -> /api/push/handoff
+
   // FastAPI AgendaService (Onda 2 — canal web→crm-s4s-ai)
   AI_SERVICE_BASE_URL: z.string().url().optional(),
   AI_SERVICE_SECRET: z.string().optional(),
