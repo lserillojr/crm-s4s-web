@@ -39,7 +39,7 @@ export function Tabs({
       </div>
       {items.map((it) => (
         <div key={it.value} role="tabpanel" hidden={active !== it.value}>
-          {it.content}
+          {active === it.value ? it.content : null}
         </div>
       ))}
     </div>

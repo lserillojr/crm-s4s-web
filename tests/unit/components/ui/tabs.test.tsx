@@ -12,7 +12,7 @@ describe("Tabs", () => {
   it("mostra a primeira aba por padrão", () => {
     render(<Tabs items={items} />);
     expect(screen.getByText("Conteúdo A")).toBeVisible();
-    expect(screen.queryByText("Conteúdo B")).not.toBeVisible();
+    expect(screen.queryByText("Conteúdo B")).not.toBeInTheDocument();
   });
   it("troca de aba ao clicar", async () => {
     render(<Tabs items={items} />);
