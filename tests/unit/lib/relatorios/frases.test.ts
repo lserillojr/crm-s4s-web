@@ -4,6 +4,8 @@ import {
   fraseTempoResposta,
   fraseAgendados,
   fraseOndeTrava,
+  fraseForaHorario,
+  frasePico,
 } from "@/lib/relatorios/frases";
 
 describe("frases MEI", () => {
@@ -42,6 +44,28 @@ describe("frases MEI", () => {
   it("onde trava: etapa + motivo quando há dados", () => {
     expect(fraseOndeTrava("Orçamento", "Preço")).toBe(
       'A maioria para em "Orçamento" — motivo nº1: Preço',
+    );
+  });
+
+  it("fora do horário: plural", () => {
+    expect(fraseForaHorario(31)).toBe(
+      "31 clientes atendidos fora do expediente",
+    );
+  });
+
+  it("fora do horário: singular quando 1", () => {
+    expect(fraseForaHorario(1)).toBe("1 cliente atendido fora do expediente");
+  });
+
+  it("pico: dia da semana + faixa quando há dado", () => {
+    expect(frasePico({ diaSemana: "terça", faixaHorario: "19h–21h" })).toBe(
+      "Seu pico é terça, 19h–21h",
+    );
+  });
+
+  it("pico: estado vazio amigável quando null", () => {
+    expect(frasePico(null)).toBe(
+      "Ainda sem movimento suficiente pra apontar um padrão",
     );
   });
 });
