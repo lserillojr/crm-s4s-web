@@ -1,9 +1,6 @@
 /** CRUD da tabela device_tokens (ExpoPushToken por device). QueryRunner injetável
  *  (mesmo padrão de db/gcal-tokens.ts) — o caller passa getPool() em produção. */
-
-interface QueryRunner {
-  query: (sql: string, params: unknown[]) => Promise<{ rows: Array<Record<string, unknown>>; rowCount: number }>;
-}
+import type { QueryRunner } from "./types";
 
 export type Platform = "android" | "ios";
 
