@@ -29,3 +29,19 @@ export const agendaItemSchema = z.object({
 });
 
 export type AgendaList = z.infer<typeof agendaItemSchema>;
+
+/**
+ * Schemas de escrita — Onda 2.
+ *
+ * BlockInput   : corpo do POST /api/agenda/blocks
+ * RescheduleInput : corpo do POST /api/agenda/appointments/[id]/reschedule
+ */
+export const BlockInput = z.object({
+  start: z.string().datetime(),
+  end: z.string().datetime(),
+  reason: z.string().max(120).optional(),
+});
+export type BlockInput = z.infer<typeof BlockInput>;
+
+export const RescheduleInput = z.object({ newSlotIso: z.string().datetime() });
+export type RescheduleInput = z.infer<typeof RescheduleInput>;
