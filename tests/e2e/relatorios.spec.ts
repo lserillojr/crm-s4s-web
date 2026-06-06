@@ -45,6 +45,9 @@ test("/relatorios mostra os números curados e troca o período", async ({ page 
   ).toBeVisible();
   await expect(page.getByText("Seu pico é terça, 19h–21h")).toBeVisible();
 
+  // flag reports_detailed_enabled = false (default) → sem aba "Detalhado"
+  await expect(page.getByRole("tab", { name: "Detalhado" })).toHaveCount(0);
+
   // troca o período → refaz a query (mesmo mock) → segue visível
   await page.getByRole("button", { name: "7 dias" }).click();
   await expect(
