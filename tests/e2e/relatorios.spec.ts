@@ -12,10 +12,10 @@ import { test, expect } from "@playwright/test";
 
 const payload = {
   period: { days: 30, from: "2026-05-06", to: "2026-06-05" },
-  ia: { conversasAtendidas: 83, tempoRespostaSegundos: 12, foraHorario: null },
+  ia: { conversasAtendidas: 83, tempoRespostaSegundos: 12, foraHorario: 31 },
   agenda: { agendados: 14, faltas: null, remarcacoes: null },
   funil: { etapaTrava: "Orçamento", motivoPerdaTop: "Preço" },
-  pico: null,
+  pico: { diaSemana: "terça", faixaHorario: "19h–21h" },
   csat: null,
 };
 
@@ -38,6 +38,12 @@ test("/relatorios mostra os números curados e troca o período", async ({ page 
     page.getByText("A IA marcou 14 horários na sua agenda"),
   ).toBeVisible();
   await expect(page.getByText(/A maioria para em "Orçamento"/)).toBeVisible();
+
+  // cards de fase 2 (pico + fora-do-horário)
+  await expect(
+    page.getByText("31 clientes atendidos fora do expediente"),
+  ).toBeVisible();
+  await expect(page.getByText("Seu pico é terça, 19h–21h")).toBeVisible();
 
   // troca o período → refaz a query (mesmo mock) → segue visível
   await page.getByRole("button", { name: "7 dias" }).click();
