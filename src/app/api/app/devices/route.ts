@@ -24,6 +24,6 @@ export async function DELETE(req: Request) {
   if ("response" in ctx) return ctx.response;
   const parsed = UnregisterSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "bad_request" }, { status: 400, headers: NO_STORE });
-  await deleteDeviceToken(getPool(), parsed.data.token);
+  await deleteDeviceToken(getPool(), parsed.data.token, ctx.userId);
   return Response.json({ ok: true }, { status: 200, headers: NO_STORE });
 }

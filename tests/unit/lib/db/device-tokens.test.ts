@@ -21,12 +21,12 @@ describe("upsertDeviceToken", () => {
 });
 
 describe("deleteDeviceToken", () => {
-  it("DELETE WHERE token = $1", async () => {
+  it("DELETE WHERE token = $1 AND user_id = $2 (least-privilege)", async () => {
     const c = makeMockClient();
-    await deleteDeviceToken(c as unknown as Client, "tok-1");
+    await deleteDeviceToken(c as unknown as Client, "tok-1", "u-1");
     const [sql, params] = c.query.mock.calls[0]!;
-    expect(sql).toMatch(/DELETE\s+FROM\s+device_tokens\s+WHERE\s+token\s*=\s*\$1/i);
-    expect(params).toEqual(["tok-1"]);
+    expect(sql).toMatch(/DELETE\s+FROM\s+device_tokens\s+WHERE\s+token\s*=\s*\$1\s+AND\s+user_id\s*=\s*\$2/i);
+    expect(params).toEqual(["tok-1", "u-1"]);
   });
 });
 

@@ -51,6 +51,6 @@ describe("DELETE /api/app/devices", () => {
     const { DELETE } = await import("@/app/api/app/devices/route");
     const res = await DELETE(jsonReq("DELETE", { token: "tok-1" }));
     expect(res.status).toBe(200);
-    expect(deleteMock).toHaveBeenCalledWith({}, "tok-1");
+    expect(deleteMock).toHaveBeenCalledWith({}, "tok-1", "u-1");
   });
 });

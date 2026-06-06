@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getPool } from "@/lib/db/pool";
 import { getTokensForTenantOwner, deleteTokens } from "@/lib/db/device-tokens";
+import { getTenantIdByAccountId } from "@/lib/db/tenants";
 import { sendPush } from "@/lib/push/send";
 import { env } from "@/lib/env";
 
@@ -18,14 +19,6 @@ const Schema = z.object({
   silencioso: z.boolean().default(false),
 });
 
-interface QueryRunner {
-  query: (sql: string, params: unknown[]) => Promise<{ rows: Array<Record<string, unknown>>; rowCount: number }>;
-}
-async function resolveTenantId(client: QueryRunner, accountId: number): Promise<string | null> {
-  const { rows } = await client.query(`SELECT id FROM tenants WHERE chatwoot_account_id = $1 LIMIT 1`, [accountId]);
-  return rows[0] ? (rows[0].id as string) : null;
-}
-
 export async function POST(req: Request) {
   const secret = req.headers.get("x-push-secret") ?? "";
   if (!env.PUSH_WEBHOOK_SECRET || secret !== env.PUSH_WEBHOOK_SECRET) {
@@ -36,10 +29,10 @@ export async function POST(req: Request) {
   const b = parsed.data;
 
   const pool = getPool();
-  const tenantId = await resolveTenantId(pool as unknown as QueryRunner, b.account_id);
+  const tenantId = await getTenantIdByAccountId(pool, b.account_id);
   if (!tenantId) return Response.json({ skipped: "tenant_not_found" }, { status: 200, headers: NO_STORE });
 
-  const tokens = await getTokensForTenantOwner(pool as unknown as QueryRunner, tenantId);
+  const tokens = await getTokensForTenantOwner(pool, tenantId);
   if (tokens.length === 0) return Response.json({ skipped: "no_devices" }, { status: 200, headers: NO_STORE });
 
   const { deadTokens } = await sendPush(tokens, {
@@ -48,7 +41,7 @@ export async function POST(req: Request) {
     silent: b.silencioso,
     data: { type: "handoff", account_id: b.account_id, conversation_id: b.conversation_id, tenant_slug: b.tenant_slug, tipo: b.tipo },
   });
-  if (deadTokens.length) await deleteTokens(pool as unknown as QueryRunner, deadTokens);
+  if (deadTokens.length) await deleteTokens(pool, deadTokens);
 
   return Response.json({ sent: true, count: tokens.length, pruned: deadTokens.length }, { status: 200, headers: NO_STORE });
 }

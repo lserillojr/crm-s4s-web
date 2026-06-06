@@ -19,8 +19,8 @@ export async function upsertDeviceToken(
   );
 }
 
-export async function deleteDeviceToken(client: QueryRunner, token: string): Promise<void> {
-  await client.query(`DELETE FROM device_tokens WHERE token = $1`, [token]);
+export async function deleteDeviceToken(client: QueryRunner, token: string, userId: string): Promise<void> {
+  await client.query(`DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, [token, userId]);
 }
 
 export async function deleteTokens(client: QueryRunner, tokens: string[]): Promise<void> {
