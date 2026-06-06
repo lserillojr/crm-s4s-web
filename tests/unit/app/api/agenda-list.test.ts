@@ -39,19 +39,14 @@ async function loadRoute(opts?: {
   const secret =
     opts !== undefined && "secret" in opts ? opts.secret : "test-secret";
 
-  // ai-service.ts lê process.env diretamente (não via env.ts), então injetamos
-  // via process.env antes do import. resetModules garante que o módulo
-  // é reimportado com os novos valores a cada teste.
-  if (base !== undefined) {
-    process.env.AI_SERVICE_BASE_URL = base;
-  } else {
-    delete process.env.AI_SERVICE_BASE_URL;
-  }
-  if (secret !== undefined) {
-    process.env.AI_SERVICE_SECRET = secret;
-  } else {
-    delete process.env.AI_SERVICE_SECRET;
-  }
+  // ai-service.ts lê via env (src/lib/env.ts), então mockamos o módulo env.
+  // resetModules garante que ai-service.ts é reimportado com o mock a cada teste.
+  vi.doMock("@/lib/env", () => ({
+    env: {
+      AI_SERVICE_BASE_URL: base,
+      AI_SERVICE_SECRET: secret,
+    },
+  }));
 
   return import("@/app/api/agenda/list/route");
 }
