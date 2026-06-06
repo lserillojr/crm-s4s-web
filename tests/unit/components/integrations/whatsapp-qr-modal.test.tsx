@@ -149,20 +149,47 @@ describe("WhatsAppQrModal", () => {
   });
 
   it("para de refrescar o QR quando o celular é detectado (scanning)", async () => {
-    const c = routeFetch({ qrFactory: okQr, statusWaStatus: "connecting" });
+    let qrCalls = 0;
+    let waStatus = "disconnected";
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/api/whatsapp/qr") {
+        qrCalls += 1;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            qrcode: `data:image/png;base64,qr${qrCalls}`,
+            pairingCode: "X",
+            expiresInSeconds: 60,
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          google: { level: "ok" },
+          whatsapp: { level: "warn", waStatus, instanceName: "abc", lastInboundAt: null },
+          instagram: { level: "unavailable" },
+        }),
+      };
+    });
     render(<WhatsAppQrModal open onClose={() => {}} />);
-    await waitFor(() => expect(screen.getByRole("img")).toBeInTheDocument());
-    // Avança até o primeiro refresh de QR acontecer (30s) para confirmar que o loop está ativo
+    await waitFor(() =>
+      expect(screen.getByRole("img")).toHaveAttribute("src", "data:image/png;base64,qr1")
+    );
+    // disconnected mantém ready → 1º refresh em 30s prova que o loop está ativo
     await act(async () => { vi.advanceTimersByTime(30_000); });
     await waitFor(() =>
       expect(screen.getByRole("img")).toHaveAttribute("src", "data:image/png;base64,qr2")
     );
-    // Neste ponto o polling de status já detectou "connecting" → modal entrou em scanning
+    // agora o celular é detectado → modal entra em scanning e o refresh deve parar
+    waStatus = "connecting";
+    await act(async () => { vi.advanceTimersByTime(2_100); });
     await waitFor(() => expect(screen.getByText(/Detectamos seu celular/i)).toBeInTheDocument());
-    const callsAfterScanning = c.qrCalls;
-    // Após scanning, nenhum novo QR deve ser buscado
+    const callsAfterScanning = qrCalls;
+    // passa de outro intervalo de 30s — nenhum QR novo deve ser buscado
     await act(async () => { vi.advanceTimersByTime(60_000); });
-    expect(c.qrCalls).toBe(callsAfterScanning);
+    expect(qrCalls).toBe(callsAfterScanning);
   });
 
   it("expira após 5 minutos sem parear (budget de sessão, não timer de QR individual)", async () => {
