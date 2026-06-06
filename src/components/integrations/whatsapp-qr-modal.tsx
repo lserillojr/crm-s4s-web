@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type ModalState =
@@ -18,7 +18,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   unauth: "Sua sessão expirou. Faça login de novo.",
 };
 
-const QR_EXPIRES_MS = 60_000;
+const QR_REFRESH_INTERVAL_MS = 30_000;
+const QR_SESSION_MAX_MS = 300_000;
 const POLL_INTERVAL_MS = 2_000;
 const POLL_FAILURE_THRESHOLD = 3;
 const SUCCESS_CLOSE_DELAY_MS = 1_500;
@@ -34,37 +35,59 @@ export function WhatsAppQrModal({
 }) {
   const [state, setState] = useState<ModalState>({ kind: "loading" });
   const [pollFailCount, setPollFailCount] = useState(0);
-  const expireTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessionStartRef = useRef<number>(0);
 
+  // Busca o QR. initial=true: carga inicial — falha vira estado "error".
+  // initial=false: refresh — falha mantém o último QR (silenciosa) e só
+  // atualiza se ainda estivermos em "ready" (não atropela scanning/connected).
+  const fetchQr = useCallback(async (initial: boolean) => {
+    try {
+      const resp = await fetch("/api/whatsapp/qr");
+      const body = await resp.json();
+      if (!resp.ok) {
+        if (initial) {
+          setState({ kind: "error", message: ERROR_MESSAGES[body.error] ?? "Algo deu errado." });
+        }
+        return;
+      }
+      setState((s) => {
+        if (!initial && s.kind !== "ready") return s;
+        return { kind: "ready", qrcode: body.qrcode, pairingCode: body.pairingCode };
+      });
+    } catch {
+      if (initial) {
+        setState({ kind: "error", message: "Demorou demais. Tente de novo." });
+      }
+    }
+  }, []);
+
+  // Carga inicial ao abrir o modal.
   useEffect(() => {
     if (!open) return;
     setState({ kind: "loading" });
     setPollFailCount(0);
-    let cancelled = false;
-    fetch("/api/whatsapp/qr")
-      .then(async (resp) => {
-        const body = await resp.json();
-        if (cancelled) return;
-        if (!resp.ok) {
-          setState({ kind: "error", message: ERROR_MESSAGES[body.error] ?? "Algo deu errado." });
-          return;
-        }
-        setState({ kind: "ready", qrcode: body.qrcode, pairingCode: body.pairingCode });
-        if (expireTimer.current) clearTimeout(expireTimer.current);
-        expireTimer.current = setTimeout(() => {
-          setState((s) => (s.kind === "ready" ? { kind: "expired" } : s));
-        }, QR_EXPIRES_MS);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setState({ kind: "error", message: "Demorou demais. Tente de novo." });
-      });
-    return () => {
-      cancelled = true;
-      if (expireTimer.current) clearTimeout(expireTimer.current);
-    };
-  }, [open]);
+    sessionStartRef.current = Date.now();
+    void fetchQr(true);
+  }, [open, fetchQr]);
 
+  // Auto-refresh do QR a cada 30s enquanto em "ready", respeitando o orçamento
+  // de ~5min. setState in-place mantém kind="ready", então o intervalo persiste.
+  useEffect(() => {
+    if (!open) return;
+    if (state.kind !== "ready") return;
+    // O budget só é avaliado enquanto em "ready"; ao detectar o celular (scanning)
+    // o loop é desmontado e a expiração por budget deixa de correr — intencional.
+    const id = setInterval(() => {
+      if (Date.now() - sessionStartRef.current >= QR_SESSION_MAX_MS) {
+        setState((s) => (s.kind === "ready" ? { kind: "expired" } : s));
+        return;
+      }
+      void fetchQr(false);
+    }, QR_REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [open, state.kind, fetchQr]);
+
+  // Polling de status (celular detectado / conectado).
   useEffect(() => {
     if (!open) return;
     if (state.kind !== "ready" && state.kind !== "scanning") return;
@@ -124,11 +147,10 @@ export function WhatsAppQrModal({
             <p>QR expirou.</p>
             <Button
               onClick={() => {
+                setPollFailCount(0);
+                sessionStartRef.current = Date.now();
                 setState({ kind: "loading" });
-                fetch("/api/whatsapp/qr").then(async (r) => {
-                  const b = await r.json();
-                  if (r.ok) setState({ kind: "ready", qrcode: b.qrcode, pairingCode: b.pairingCode });
-                });
+                void fetchQr(true);
               }}
             >
               Gerar novo
