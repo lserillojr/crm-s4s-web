@@ -7,6 +7,8 @@ import {
   fraseTempoResposta,
   fraseAgendados,
   fraseOndeTrava,
+  fraseForaHorario,
+  frasePico,
 } from "@/lib/relatorios/frases";
 import { NumeroCard } from "./numero-card";
 
@@ -73,6 +75,16 @@ export function RelatoriosClient() {
           <NumeroCard
             destaque={data.funil.etapaTrava ?? "—"}
             frase={fraseOndeTrava(data.funil.etapaTrava, data.funil.motivoPerdaTop)}
+          />
+          {data.ia.foraHorario != null && data.ia.foraHorario > 0 && (
+            <NumeroCard
+              destaque={String(data.ia.foraHorario)}
+              frase={fraseForaHorario(data.ia.foraHorario)}
+            />
+          )}
+          <NumeroCard
+            destaque={data.pico ? data.pico.diaSemana : "—"}
+            frase={frasePico(data.pico)}
           />
         </section>
       )}
