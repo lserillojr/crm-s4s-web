@@ -75,6 +75,8 @@ export function WhatsAppQrModal({
   useEffect(() => {
     if (!open) return;
     if (state.kind !== "ready") return;
+    // O budget só é avaliado enquanto em "ready"; ao detectar o celular (scanning)
+    // o loop é desmontado e a expiração por budget deixa de correr — intencional.
     const id = setInterval(() => {
       if (Date.now() - sessionStartRef.current >= QR_SESSION_MAX_MS) {
         setState((s) => (s.kind === "ready" ? { kind: "expired" } : s));
@@ -145,6 +147,7 @@ export function WhatsAppQrModal({
             <p>QR expirou.</p>
             <Button
               onClick={() => {
+                setPollFailCount(0);
                 sessionStartRef.current = Date.now();
                 setState({ kind: "loading" });
                 void fetchQr(true);

@@ -200,7 +200,8 @@ describe("WhatsAppQrModal", () => {
     // Antes de 5 minutos, o modal deve continuar mostrando QR (auto-refresh ativo)
     await act(async () => { vi.advanceTimersByTime(240_000); }); // 4 min
     expect(screen.queryByText(/QR expirou/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("img")).toBeInTheDocument();
+    // prova que o auto-refresh seguiu disparando: o QR não é mais o inicial (qr1)
+    expect(screen.getByRole("img")).not.toHaveAttribute("src", "data:image/png;base64,qr1");
     // Após 5 minutos, o budget expira
     await act(async () => { vi.advanceTimersByTime(60_000); }); // +1 min = 5 min total
     await waitFor(() => expect(screen.getByText(/QR expirou/i)).toBeInTheDocument());
