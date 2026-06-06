@@ -9,6 +9,7 @@ const PROTECTED_PREFIXES = [
   "/wizard",
   "/settings",
   "/relatorios",
+  "/agenda",
   "/atendimento",
   "/funil",
   "/contatos",
