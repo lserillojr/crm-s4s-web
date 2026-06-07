@@ -26,7 +26,9 @@ describe("getTenantChatwootCreds", () => {
     const client = { query: vi.fn().mockResolvedValue({ rows: [{ chatwoot_account_id: 2, chatwoot_api_token: "abc" }], rowCount: 1 }) };
     const out = await getTenantChatwootCreds(client, "t-1");
     expect(out).toEqual({ accountId: 2, apiToken: "abc" });
-    expect(client.query.mock.calls[0]![1]).toEqual(["t-1"]);
+    const [sql, params] = client.query.mock.calls[0]!;
+    expect(sql).toMatch(/SELECT.*chatwoot_account_id.*chatwoot_api_token.*FROM\s+tenants.*WHERE\s+id\s*=\s*\$1/is);
+    expect(params).toEqual(["t-1"]);
   });
   it("null quando não acha", async () => {
     const client = { query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }) };
