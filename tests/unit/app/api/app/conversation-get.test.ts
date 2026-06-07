@@ -18,6 +18,24 @@ describe("GET /api/app/conversations/[id]", () => {
     expect(res.status).toBe(401);
   });
 
+  it("400 com id inválido (não-inteiro ou <= 0)", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    const r1 = await GET(new Request("http://x"), { params: { id: "abc" } });
+    expect(r1.status).toBe(400);
+    expect(await r1.json()).toEqual({ error: "bad_id" });
+    const r2 = await GET(new Request("http://x"), { params: { id: "0" } });
+    expect(r2.status).toBe(400);
+    expect(chatwootForTenant).not.toHaveBeenCalled();
+  });
+
+  it("502 quando o upstream falha", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockRejectedValue(new Error("boom"));
+    const res = await GET(new Request("http://x"), params);
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toBe("upstream");
+  });
+
   it("monta a conversa (resumo + timeline classificada)", async () => {
     requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
     chatwootForTenant.mockResolvedValue({

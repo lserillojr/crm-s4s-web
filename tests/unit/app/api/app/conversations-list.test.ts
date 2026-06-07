@@ -33,4 +33,12 @@ describe("GET /api/app/conversations", () => {
     expect(body[0]).toMatchObject({ id: 1, contato: "Ana", status: "posse", motivo: "takeover_humano" });
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
+
+  it("502 quando o upstream falha", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockRejectedValue(new Error("boom"));
+    const res = await GET(req());
+    expect(res.status).toBe(502);
+    expect((await res.json()).error).toBe("upstream");
+  });
 });
