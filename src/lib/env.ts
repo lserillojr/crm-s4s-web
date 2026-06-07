@@ -35,6 +35,9 @@ const envSchema = z.object({
   // FastAPI AgendaService (Onda 2 — canal web→crm-s4s-ai)
   AI_SERVICE_BASE_URL: z.string().url().optional(),
   AI_SERVICE_SECRET: z.string().optional(),
+
+  // Chatwoot (Onda 2 — app nativo lê/escreve conversas via BFF)
+  CHATWOOT_BASE_URL: z.string().url().optional(), // instância única por ambiente
 });
 
 /**
