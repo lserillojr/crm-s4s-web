@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { createChatwootClient } from "@/lib/api/chatwoot-client";
 
 const CFG = { baseUrl: "https://chat.example.com/", accountId: 2, token: "tok-123" };
@@ -7,7 +7,7 @@ function mockFetchOnce(json: unknown, ok = true, status = 200) {
   return vi.fn().mockResolvedValue({ ok, status, json: async () => json });
 }
 
-beforeEach(() => { vi.restoreAllMocks(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("createChatwootClient", () => {
   it("listOpenConversations chama a URL certa com o header e devolve payload", async () => {
@@ -19,6 +19,15 @@ describe("createChatwootClient", () => {
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://chat.example.com/api/v1/accounts/2/conversations?status=open&assignee_type=all");
     expect((init as RequestInit).headers).toMatchObject({ api_access_token: "tok-123" });
+  });
+
+  it("getConversation chama /conversations/{id} e devolve a conversa", async () => {
+    const fetchMock = mockFetchOnce({ id: 5, custom_attributes: { ai_state: "escalated" } });
+    vi.stubGlobal("fetch", fetchMock);
+    const cw = createChatwootClient(CFG);
+    const conv = await cw.getConversation(5);
+    expect(conv).toMatchObject({ id: 5 });
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://chat.example.com/api/v1/accounts/2/conversations/5");
   });
 
   it("getMessages devolve payload", async () => {
