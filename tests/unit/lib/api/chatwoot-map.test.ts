@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   classifyAutor, classifyTipo, deriveStatus, isHandoff,
-  mapListItem, mapConversa, mergeAiState,
+  mapListItem, mapConversa, mapMensagem, mergeAiState,
   type RawMessage, type RawConversation,
 } from "@/lib/api/chatwoot-map";
 
@@ -33,6 +33,9 @@ describe("classifyTipo", () => {
   });
   it("attachment de audio = audio", () => {
     expect(classifyTipo({ id: 1, message_type: 0, attachments: [{ file_type: "audio" }] })).toBe("audio");
+  });
+  it("attachment de localização = local", () => {
+    expect(classifyTipo({ id: 1, message_type: 0, attachments: [{ file_type: "location" }] })).toBe("local");
   });
   it("attachment desconhecido com anexo = documento", () => {
     expect(classifyTipo({ id: 1, message_type: 0, attachments: [{ file_type: "story_mention" }] })).toBe("documento");
@@ -80,6 +83,16 @@ describe("mapConversa", () => {
     expect(dto.contato).toBe("Maria");
     expect(dto.mensagens.map((m) => m.autor)).toEqual(["cliente", "ia", "humano"]);
     expect(dto.mensagens[0]!.em).toBe(new Date(1700000000 * 1000).toISOString());
+  });
+});
+
+describe("mapMensagem", () => {
+  it("mensagem de mídia tem texto vazio (chip renderizado pelo app)", () => {
+    const dto = mapMensagem({ id: 1, message_type: 0, content: "", attachments: [{ file_type: "image" }] });
+    expect(dto).toMatchObject({ tipo: "imagem", texto: "" });
+  });
+  it("activity vira null", () => {
+    expect(mapMensagem({ id: 1, message_type: 2, content: "atribuída" })).toBeNull();
   });
 });
 
