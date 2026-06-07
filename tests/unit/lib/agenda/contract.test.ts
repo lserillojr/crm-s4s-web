@@ -57,6 +57,15 @@ describe("BlockInput", () => {
     expect(() => BlockInput.parse({ ...validBlock, reason: "Almoço" })).not.toThrow();
   });
 
+  it("aceita datetime com offset local (o que os forms enviam)", () => {
+    expect(() =>
+      BlockInput.parse({
+        start: "2026-06-10T09:00:00-03:00",
+        end: "2026-06-10T10:00:00-03:00",
+      }),
+    ).not.toThrow();
+  });
+
   it("rejeita reason com mais de 120 caracteres", () => {
     expect(() =>
       BlockInput.parse({ ...validBlock, reason: "x".repeat(121) }),
@@ -84,6 +93,12 @@ describe("RescheduleInput", () => {
   it("aceita newSlotIso datetime válido", () => {
     expect(() =>
       RescheduleInput.parse({ newSlotIso: "2026-06-15T14:00:00Z" }),
+    ).not.toThrow();
+  });
+
+  it("aceita newSlotIso com offset local (o que o form envia)", () => {
+    expect(() =>
+      RescheduleInput.parse({ newSlotIso: "2026-06-15T14:00:00-03:00" }),
     ).not.toThrow();
   });
 

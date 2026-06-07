@@ -36,12 +36,19 @@ export type AgendaList = z.infer<typeof agendaItemSchema>;
  * BlockInput   : corpo do POST /api/agenda/blocks
  * RescheduleInput : corpo do POST /api/agenda/appointments/[id]/reschedule
  */
+// `{ offset: true }`: os forms (block-form / reschedule inline) convertem o input
+// datetime-local para ISO com offset local explícito (ex.: "...-03:00"), nunca 'Z'.
+// O default do z.datetime() só aceita 'Z' e rejeitaria o próprio input dos forms —
+// quebrando criar-bloqueio e reagendar em qualquer fuso. O backend (crm-s4s-ai)
+// aceita offset. (Bug latente da Onda 2, exposto pelos e2e da Onda 3.)
 export const BlockInput = z.object({
-  start: z.string().datetime(),
-  end: z.string().datetime(),
+  start: z.string().datetime({ offset: true }),
+  end: z.string().datetime({ offset: true }),
   reason: z.string().max(120).optional(),
 });
 export type BlockInput = z.infer<typeof BlockInput>;
 
-export const RescheduleInput = z.object({ newSlotIso: z.string().datetime() });
+export const RescheduleInput = z.object({
+  newSlotIso: z.string().datetime({ offset: true }),
+});
 export type RescheduleInput = z.infer<typeof RescheduleInput>;

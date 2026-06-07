@@ -54,32 +54,35 @@ test("/agenda mostra os compromissos vindos da API", async ({ page }) => {
 // Onda 2: ações de escrita
 // ---------------------------------------------------------------------------
 
-// TODO(smoke DEV Onda 2): mock/seletores a validar contra o app real; fixme até o smoke.
-test.fixme("MEI cria e remove um bloqueio", async ({ page }) => {
-  // Contador de chamadas à lista — começa com bloqueio, depois sem
-  let listCount = 0;
-  const payloadComBloqueio = { ...payload };
-  const payloadSemBloqueio = { appointments: payload.appointments, blocks: [] };
+test("MEI cria e remove um bloqueio", async ({ page }) => {
+  // A lista é dirigida por ESTADO (não por contador de chamadas): o "Almoço" só
+  // some depois que o DELETE acontece. Assim a invalidação disparada pela CRIAÇÃO
+  // não faz o bloqueio existente sumir antes da hora.
+  let almocoRemovido = false;
 
-  await page.route("**/api/agenda/list**", (route) => {
-    listCount++;
+  await page.route("**/api/agenda/list**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      // Após a deleção (listCount > 1) devolve sem o bloqueio
-      body: JSON.stringify(listCount === 1 ? payloadComBloqueio : payloadSemBloqueio),
-    });
-  });
+      body: JSON.stringify({
+        appointments: payload.appointments,
+        blocks: almocoRemovido ? [] : payload.blocks,
+      }),
+    }),
+  );
 
-  // Mock do POST criar bloqueio → 200
-  await page.route("**/api/agenda/blocks", (route) => {
-    if (route.request().method() === "POST") {
+  // POST cria bloqueio (sem query); DELETE remove (com ?id=...). O glob precisa do
+  // sufixo `**` para casar a query string do DELETE.
+  await page.route("**/api/agenda/blocks**", (route) => {
+    const method = route.request().method();
+    if (method === "POST") {
       route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ id: "b2" }),
       });
-    } else if (route.request().method() === "DELETE") {
+    } else if (method === "DELETE") {
+      almocoRemovido = true;
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -111,16 +114,15 @@ test.fixme("MEI cria e remove um bloqueio", async ({ page }) => {
   // Submete
   await page.getByRole("button", { name: /^bloquear$/i }).click();
 
-  // Formulário fecha (ou aguarda invalidação da query)
+  // Formulário fecha após sucesso (o "Almoço" continua na lista — ainda não removido)
   await expect(
     page.getByRole("form", { name: /formulário de bloqueio/i }),
   ).not.toBeVisible({ timeout: 3000 });
 
-  // -- Remove bloqueio existente "Almoço" --
-  // O botão de remover deve estar visível ao lado do bloqueio
+  // -- Remove o bloqueio existente "Almoço" --
   await page.getByRole("button", { name: /remover bloqueio almoço/i }).click();
 
-  // Após invalidação (listCount > 1), bloqueio some
+  // Após o DELETE + invalidação, o bloqueio some
   await expect(page.getByText("Almoço")).not.toBeVisible({ timeout: 3000 });
 });
 
@@ -160,8 +162,7 @@ test("MEI cancela um compromisso", async ({ page }) => {
   ).not.toBeVisible({ timeout: 3000 });
 });
 
-// TODO(smoke DEV Onda 2): mock/seletores a validar contra o app real; fixme até o smoke.
-test.fixme("MEI reagenda um compromisso", async ({ page }) => {
+test("MEI reagenda um compromisso", async ({ page }) => {
   let rescheduleBody: unknown = null;
 
   await page.route("**/api/agenda/list**", (route) =>
