@@ -82,7 +82,9 @@ export function isHandoff(conv: RawConversation): boolean {
   return ca?.ai_state === "escalated" || ca?.handoff_status === "aberto";
 }
 
-function preview(s: string | undefined, n = 100): string {
+const PREVIEW_MAX_CHARS = 100;
+
+function preview(s: string | undefined, n = PREVIEW_MAX_CHARS): string {
   if (!s) return "";
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }

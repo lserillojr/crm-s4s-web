@@ -22,6 +22,9 @@ describe("classifyAutor", () => {
   it("activity (type 2) = null", () => {
     expect(classifyAutor({ id: 1, message_type: 2 })).toBeNull();
   });
+  it("template (type 3) = null", () => {
+    expect(classifyAutor({ id: 1, message_type: 3 })).toBeNull();
+  });
 });
 
 describe("classifyTipo", () => {
@@ -65,6 +68,11 @@ describe("mapListItem", () => {
   });
   it("contato cai para 'Cliente' sem nome", () => {
     expect(mapListItem({ id: 7, custom_attributes: {} }).contato).toBe("Cliente");
+  });
+  it("resumoPreview trunca em 100 chars com ellipsis", () => {
+    const item = mapListItem(conv({ ai_summary: "x".repeat(101) }));
+    expect(item.resumoPreview).toHaveLength(100); // 99 chars + '…'
+    expect(item.resumoPreview.endsWith("…")).toBe(true);
   });
 });
 
