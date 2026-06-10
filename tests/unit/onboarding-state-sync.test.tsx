@@ -68,4 +68,23 @@ describe("OnboardingStateSync", () => {
     const { container } = render(<OnboardingStateSync />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("reseta dados de outro dono antes de hidratar (sessionEmail diferente)", async () => {
+    // localStorage carrega dados da conta A (dono "a@x.com")
+    useWizardStore.getState().ensureOwner("a@x.com");
+    useWizardStore.getState().setKb({
+      businessName: "Salão da A",
+      vertical: "beleza",
+      about: "a".repeat(40),
+    });
+    // Conta B (nova) não tem estado no server
+    loadServerStateMock.mockResolvedValue(null);
+
+    render(<OnboardingStateSync sessionEmail="b@y.com" />);
+    await waitFor(() => expect(loadServerStateMock).toHaveBeenCalled());
+
+    // O nome da conta A NÃO pode sobreviver para a conta B
+    expect(useWizardStore.getState().data.kb.businessName).toBe("");
+    expect(useWizardStore.getState().ownerEmail).toBe("b@y.com");
+  });
 });

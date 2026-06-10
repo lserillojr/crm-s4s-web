@@ -1,10 +1,34 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { LogoutButton } from "@/components/shell/logout-button";
+import { useWizardStore } from "@/lib/wizard/store";
 
 afterEach(() => cleanup());
 
 describe("LogoutButton", () => {
+  beforeEach(() => useWizardStore.getState().reset());
+
+  it("limpa o wizard local ao sair (defesa contra vazamento entre contas)", () => {
+    useWizardStore.getState().ensureOwner("a@x.com");
+    useWizardStore.getState().setKb({
+      businessName: "Salão da A",
+      vertical: "beleza",
+      about: "a".repeat(40),
+    });
+
+    render(
+      <LogoutButton
+        targets={{ odoo: null, chatwoot: null }}
+        onFederatedLogout={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByTestId("logout"));
+
+    const s = useWizardStore.getState();
+    expect(s.data.kb.businessName).toBe("");
+    expect(s.ownerEmail).toBeNull();
+  });
+
   it("injeta um iframe de logout por embed e depois chama o logout federado", async () => {
     const onFederatedLogout = vi.fn();
     render(

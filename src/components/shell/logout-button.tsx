@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { EmbedLogoutTargets } from "@/lib/auth/embed-logout-targets";
+import { useWizardStore } from "@/lib/wizard/store";
 
 /**
  * "Sair" robusto: PRIMEIRO encerra as sessões dos embeds (Odoo/Chatwoot) via
@@ -28,6 +29,10 @@ export function LogoutButton({
   function handleClick() {
     if (busy) return;
     setBusy(true);
+
+    // Limpa o wizard local (localStorage) ANTES de sair: sem isto, o próximo
+    // login no mesmo navegador herdaria o nome do negócio (etc.) desta conta.
+    useWizardStore.getState().reset();
 
     const urls = [targets.odoo, targets.chatwoot].filter(Boolean) as string[];
 

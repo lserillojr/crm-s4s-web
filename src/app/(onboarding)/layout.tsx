@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { ProgressHeader } from "@/components/wizard/progress-header";
 import { OnboardingStateSync } from "@/components/onboarding/onboarding-state-sync";
+import { auth } from "@/auth";
 
-export default function OnboardingLayout({
+export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
   return (
     <div className="flex min-h-screen flex-col bg-s4s-gray-light">
-      <OnboardingStateSync />
+      <OnboardingStateSync sessionEmail={session?.user?.email ?? null} />
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-2xl items-center justify-between p-4">
           <Link

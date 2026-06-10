@@ -86,3 +86,46 @@ describe("useWizardStore", () => {
     expect(s.furthestCompletedStep).toBeNull();
   });
 });
+
+describe("useWizardStore.ensureOwner — isolamento por dono", () => {
+  beforeEach(() => useWizardStore.getState().reset());
+
+  it("reseta os dados quando o dono persistido difere da sessão atual", () => {
+    // Conta A preenche o nome do negócio (fica no localStorage)
+    useWizardStore.getState().ensureOwner("a@x.com");
+    useWizardStore.getState().setKb({
+      businessName: "Salão da A",
+      vertical: "beleza",
+      about: "a".repeat(40),
+    });
+    useWizardStore.getState().markCompleted("kb");
+
+    // Conta B entra no MESMO navegador
+    useWizardStore.getState().ensureOwner("b@y.com");
+
+    const s = useWizardStore.getState();
+    expect(s.data.kb.businessName).toBe(""); // não vazou o nome da conta A
+    expect(s.furthestCompletedStep).toBeNull();
+    expect(s.ownerEmail).toBe("b@y.com");
+  });
+
+  it("preserva os dados quando o mesmo dono retorna", () => {
+    useWizardStore.getState().ensureOwner("a@x.com");
+    useWizardStore.getState().setKb({
+      businessName: "Salão da A",
+      vertical: "beleza",
+      about: "a".repeat(40),
+    });
+
+    useWizardStore.getState().ensureOwner("a@x.com"); // mesmo dono
+
+    expect(useWizardStore.getState().data.kb.businessName).toBe("Salão da A");
+    expect(useWizardStore.getState().ownerEmail).toBe("a@x.com");
+  });
+
+  it("reset() zera o ownerEmail", () => {
+    useWizardStore.getState().ensureOwner("a@x.com");
+    useWizardStore.getState().reset();
+    expect(useWizardStore.getState().ownerEmail).toBeNull();
+  });
+});
