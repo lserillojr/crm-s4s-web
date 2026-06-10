@@ -21,22 +21,36 @@ import {
 import { Input } from "@/components/ui/input";
 import { WizardActions } from "@/components/wizard/wizard-actions";
 import { useWizardStore } from "@/lib/wizard/store";
+import { useOnboardingSessionPhone } from "@/components/onboarding/onboarding-session";
 import {
   whatsappStepSchema,
   type WhatsappStepData,
 } from "@/lib/wizard/schemas";
 import { nextStepSlug } from "@/lib/wizard/steps";
 
+/** Formata o telefone do cadastro (ex.: "+5511986148903") pro padrão BR
+ * "(11) 98614-8903" usado no campo. Em formato inesperado devolve como veio. */
+function formatarTelefoneBR(raw: string | null): string {
+  if (!raw) return "";
+  let d = raw.replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2); // remove DDI +55
+  if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return raw;
+}
+
 export default function WhatsappStepPage() {
   const router = useRouter();
   const stored = useWizardStore((s) => s.data.whatsapp);
   const setWhatsapp = useWizardStore((s) => s.setWhatsapp);
   const markCompleted = useWizardStore((s) => s.markCompleted);
+  // Sugestão: número do cadastro (Keycloak), usado só se o MEI ainda não digitou.
+  const sugestaoTelefone = useOnboardingSessionPhone();
 
   const form = useForm<WhatsappStepData>({
     resolver: zodResolver(whatsappStepSchema),
     defaultValues: {
-      phoneNumber: stored.phoneNumber ?? "",
+      phoneNumber: stored.phoneNumber || formatarTelefoneBR(sugestaoTelefone),
       provider: stored.provider ?? "evolution",
       hasExistingNumber: stored.hasExistingNumber ?? true,
     },

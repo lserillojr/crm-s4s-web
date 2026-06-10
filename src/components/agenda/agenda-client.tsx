@@ -9,12 +9,14 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { BlockForm } from "./block-form";
 
-/** Janela fixa da Onda 1: próximos 7 dias a partir de hoje (visual simples;
- * calendário rico fica para a Onda 2). */
+/** Janela fixa: próximos 30 dias a partir de hoje (visual simples; calendário
+ * rico fica para a Onda 2). 30 dias — e não 7 — para não cortar compromissos
+ * recorrentes da semana seguinte (ex.: aulas seg/qua/sex). */
+const JANELA_DIAS = 30;
 function defaultRange(): { from: string; to: string } {
   const now = new Date();
   const from = now.toISOString().slice(0, 10);
-  const to = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const to = new Date(now.getTime() + JANELA_DIAS * 24 * 60 * 60 * 1000)
     .toISOString()
     .slice(0, 10);
   return { from, to };
@@ -239,7 +241,7 @@ export function AgendaClient() {
 
       {data && grupos.length === 0 && (
         <p className="text-muted-foreground">
-          Você não tem compromissos nos próximos 7 dias.
+          Você não tem compromissos nos próximos 30 dias.
         </p>
       )}
 
