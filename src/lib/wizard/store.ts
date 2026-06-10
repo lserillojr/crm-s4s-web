@@ -26,6 +26,10 @@ interface WizardState {
   // Usado pra UI mostrar "Continue de onde parou" e pra bloquear navegação
   // direta pra steps que ainda não tiveram pré-requisito.
   furthestCompletedStep: string | null;
+  // E-mail do dono dos dados persistidos. O localStorage é por-navegador (chave
+  // global), então sem isto os dados de uma conta vazariam pra outra ao trocar
+  // de conta no mesmo navegador. `ensureOwner` reseta quando o dono muda.
+  ownerEmail: string | null;
   hydrated: boolean;
 
   setWhatsapp: (data: WhatsappStepData) => void;
@@ -36,6 +40,12 @@ interface WizardState {
 
   markCompleted: (stepSlug: string) => void;
   reset: () => void;
+  // Garante que os dados persistidos pertencem ao `email` da sessão atual.
+  // Se o dono for outro (ou desconhecido), reseta antes de seguir — evita que o
+  // nome do negócio (etc.) de uma conta apareça no wizard de outra no mesmo
+  // navegador. A fonte autoritativa por e-mail é o onboarding_state server-side,
+  // que reidrata em seguida (via OnboardingStateSync).
+  ensureOwner: (email: string) => void;
   setHydrated: (v: boolean) => void;
   hydrateFromServer: (payload?: {
     data?: WizardData;
@@ -75,6 +85,7 @@ export const useWizardStore = create<WizardState>()(
     (set) => ({
       data: wizardDefaults,
       furthestCompletedStep: null,
+      ownerEmail: null,
       hydrated: false,
 
       setWhatsapp: (data) =>
@@ -93,6 +104,18 @@ export const useWizardStore = create<WizardState>()(
         set({
           data: wizardDefaults,
           furthestCompletedStep: null,
+          ownerEmail: null,
+        }),
+      ensureOwner: (email) =>
+        set((s) => {
+          if (s.ownerEmail === email) return {};
+          // Dono diferente (ou desconhecido): descarta os dados locais — eles são
+          // de outra conta. O onboarding_state do `email` reidrata na sequência.
+          return {
+            data: wizardDefaults,
+            furthestCompletedStep: null,
+            ownerEmail: email,
+          };
         }),
       setHydrated: (v) => set({ hydrated: v }),
       hydrateFromServer: (payload) =>
@@ -121,6 +144,7 @@ export const useWizardStore = create<WizardState>()(
       partialize: (state) => ({
         data: state.data,
         furthestCompletedStep: state.furthestCompletedStep,
+        ownerEmail: state.ownerEmail,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) state.setHydrated(true);
