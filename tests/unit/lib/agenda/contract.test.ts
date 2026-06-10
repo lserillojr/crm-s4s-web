@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { agendaItemSchema, BlockInput, RescheduleInput } from "@/lib/agenda/contract";
+import { agendaItemSchema, BlockInput, RescheduleInput, CreateAppointmentInput } from "@/lib/agenda/contract";
 
 describe("agendaItemSchema", () => {
   it("aceita payload válido", () => {
@@ -110,5 +110,37 @@ describe("RescheduleInput", () => {
 
   it("rejeita newSlotIso ausente", () => {
     expect(() => RescheduleInput.parse({})).toThrow();
+  });
+});
+
+describe("CreateAppointmentInput", () => {
+  it("aceita ISO com offset + duração + título", () => {
+    const r = CreateAppointmentInput.safeParse({
+      startIso: "2026-09-10T13:00:00-03:00",
+      durationMin: 30,
+      contactName: "Ana",
+      title: "corte",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejeita duração não-positiva", () => {
+    const r = CreateAppointmentInput.safeParse({
+      startIso: "2026-09-10T13:00:00-03:00",
+      durationMin: 0,
+    });
+    expect(r.success).toBe(false);
+  });
+});
+
+describe("agendaItemSchema title", () => {
+  it("aceita appointment com title nulo", () => {
+    const r = agendaItemSchema.safeParse({
+      appointments: [{ id: "1", start: "2026-09-10T13:00:00-03:00",
+        end: "2026-09-10T13:30:00-03:00", contactName: "Ana", title: null,
+        status: "confirmado", source: "manual" }],
+      blocks: [],
+    });
+    expect(r.success).toBe(true);
   });
 });

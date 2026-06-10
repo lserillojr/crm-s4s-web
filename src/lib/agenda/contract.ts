@@ -16,6 +16,7 @@ export const agendaItemSchema = z.object({
       contactName: z.string().nullable(),
       status: z.string(),
       source: z.string(),
+      title: z.string().nullable().optional(),
     }),
   ),
   blocks: z.array(
@@ -52,3 +53,16 @@ export const RescheduleInput = z.object({
   newSlotIso: z.string().datetime({ offset: true }),
 });
 export type RescheduleInput = z.infer<typeof RescheduleInput>;
+
+/**
+ * Schema de criação de agendamento manual — corpo do POST /api/agenda/appointments.
+ * `startIso` com offset local explícito (mesma regra de BlockInput/RescheduleInput).
+ */
+export const CreateAppointmentInput = z.object({
+  startIso: z.string().datetime({ offset: true }),
+  durationMin: z.number().int().positive(),
+  contactName: z.string().max(120).optional(),
+  contactPhone: z.string().max(40).optional(),
+  title: z.string().max(120).optional(),
+});
+export type CreateAppointmentInput = z.infer<typeof CreateAppointmentInput>;
