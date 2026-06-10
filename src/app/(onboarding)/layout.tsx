@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProgressHeader } from "@/components/wizard/progress-header";
 import { OnboardingStateSync } from "@/components/onboarding/onboarding-state-sync";
+import { OnboardingSessionProvider } from "@/components/onboarding/onboarding-session";
 import { auth } from "@/auth";
 
 export default async function OnboardingLayout({
@@ -10,6 +11,7 @@ export default async function OnboardingLayout({
 }) {
   const session = await auth();
   return (
+    <OnboardingSessionProvider phoneNumber={session?.user?.phoneNumber ?? null}>
     <div className="flex min-h-screen flex-col bg-s4s-gray-light">
       <OnboardingStateSync sessionEmail={session?.user?.email ?? null} />
       <header className="border-b bg-white">
@@ -35,5 +37,6 @@ export default async function OnboardingLayout({
         </div>
       </main>
     </div>
+    </OnboardingSessionProvider>
   );
 }

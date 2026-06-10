@@ -159,17 +159,17 @@ export default function KbStepPage() {
                   <FormLabel>O que a IA precisa saber</FormLabel>
 
                   {canUseTemplate && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         type="button"
-                        variant="outline"
                         size="sm"
                         onClick={applyTemplate}
+                        className="bg-s4s-blue text-white hover:bg-s4s-blue/90"
                       >
-                        Usar template de {verticalLabel(vertical)}
+                        ✨ Usar template de {verticalLabel(vertical)}
                       </Button>
                       <span className="text-xs text-muted-foreground">
-                        Você edita do jeito que quiser depois.
+                        Preenche um exemplo pronto — você edita do jeito que quiser depois.
                       </span>
                     </div>
                   )}

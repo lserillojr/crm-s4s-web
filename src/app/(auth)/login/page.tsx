@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -16,6 +15,13 @@ export default function LoginPage() {
     await signIn("keycloak", { redirectTo: "/dashboard" });
   }
 
+  // "Criar conta" leva DIRETO à tela de registro do Keycloak (prompt=create),
+  // sem a parada intermediária em /signup — um clique só (feedback Anselmo).
+  async function criarConta() {
+    "use server";
+    await signIn("keycloak", { redirectTo: "/wizard" }, { prompt: "create" });
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -30,9 +36,15 @@ export default function LoginPage() {
         </form>
       </CardContent>
       <CardFooter>
-        <Link href="/signup" className="text-sm text-s4s-blue hover:underline">
-          Criar conta
-        </Link>
+        <form action={criarConta}>
+          <button
+            type="submit"
+            className="text-sm text-s4s-blue hover:underline"
+            data-testid="signup-keycloak"
+          >
+            Criar conta
+          </button>
+        </form>
       </CardFooter>
     </Card>
   );
