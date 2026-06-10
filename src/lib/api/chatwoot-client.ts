@@ -15,13 +15,15 @@ export function createChatwootClient(cfg: { baseUrl: string; accountId: number; 
   const base = `${cfg.baseUrl.replace(/\/$/, "")}/api/v1/accounts/${cfg.accountId}`;
   const headers = { "Content-Type": "application/json", api_access_token: cfg.token };
 
+  // cache: "no-store" — Next 14 cacheia fetch de servidor por padrão; sem isto a
+  // timeline/lista do app congela numa resposta antiga do Chatwoot (mesma URL).
   async function get<T>(path: string): Promise<T> {
-    const res = await fetch(`${base}${path}`, { headers });
+    const res = await fetch(`${base}${path}`, { headers, cache: "no-store" });
     if (!res.ok) throw new Error(`chatwoot GET ${path} -> ${res.status}`);
     return (await res.json()) as T;
   }
   async function post(path: string, body: unknown): Promise<void> {
-    const res = await fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
+    const res = await fetch(`${base}${path}`, { method: "POST", headers, body: JSON.stringify(body), cache: "no-store" });
     if (!res.ok) throw new Error(`chatwoot POST ${path} -> ${res.status}`);
   }
 
