@@ -3,8 +3,22 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { FollowupInviteCard } from "@/components/followup/invite-card";
 
 function mockGet(enabled: boolean) {
-  global.fetch = vi.fn(async () =>
-    new Response(JSON.stringify({ config: { enabled, intensity: "padrao", followup_enabled: true, noshow_enabled: true, nutricao_enabled: false, respeitar_horario: true, mensagens: null } }), { status: 200 }),
+  global.fetch = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          config: {
+            enabled,
+            intensity: "padrao",
+            followup_enabled: true,
+            noshow_enabled: true,
+            nutricao_enabled: false,
+            respeitar_horario: true,
+            mensagens: null,
+          },
+        }),
+        { status: 200 },
+      ),
   ) as any;
 }
 
@@ -14,7 +28,9 @@ describe("FollowupInviteCard", () => {
   it("aparece quando desligado", async () => {
     mockGet(false);
     render(<FollowupInviteCard />);
-    await waitFor(() => expect(screen.getByTestId("followup-invite")).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByTestId("followup-invite")).toBeTruthy(),
+    );
   });
 
   it("não aparece quando já ligado", async () => {

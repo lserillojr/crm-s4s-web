@@ -8,10 +8,16 @@ import { z } from "zod";
 export const INTENSITIES = ["suave", "padrao", "insistente"] as const;
 export type Intensity = (typeof INTENSITIES)[number];
 
-export const INTENSITY_LABELS: Record<Intensity, { titulo: string; desc: string }> = {
+export const INTENSITY_LABELS: Record<
+  Intensity,
+  { titulo: string; desc: string }
+> = {
   suave: { titulo: "Suave", desc: "Poucos lembretes, bem espaçados" },
   padrao: { titulo: "Padrão", desc: "Equilíbrio recomendado" },
-  insistente: { titulo: "Insistente", desc: "Mais lembretes para não perder o cliente" },
+  insistente: {
+    titulo: "Insistente",
+    desc: "Mais lembretes para não perder o cliente",
+  },
 };
 
 const mensagensSchema = z

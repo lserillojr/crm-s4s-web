@@ -38,7 +38,8 @@ export function AcompanhamentoClient() {
     };
   }, []);
 
-  const patch = (p: Partial<FollowupConfig>) => setValue((v) => ({ ...v, ...p }));
+  const patch = (p: Partial<FollowupConfig>) =>
+    setValue((v) => ({ ...v, ...p }));
 
   const handleSave = async () => {
     setSubmitting(true);
@@ -59,24 +60,33 @@ export function AcompanhamentoClient() {
     }
   };
 
-  if (!mounted) return <p className="text-sm text-muted-foreground">Carregando...</p>;
+  if (!mounted)
+    return <p className="text-sm text-muted-foreground">Carregando...</p>;
 
   return (
     <div className="space-y-4">
       {status === "saved" && (
-        <div role="status" className="rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-900">
+        <div
+          role="status"
+          className="rounded-md border border-green-300 bg-green-50 p-3 text-sm text-green-900"
+        >
           Pronto! Suas preferências de acompanhamento foram salvas.
         </div>
       )}
       {status === "error" && (
-        <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
+        <div
+          role="alert"
+          className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+        >
           Não consegui salvar agora — tente de novo em instantes.
         </div>
       )}
 
       {/* MODO LEIGO */}
       <Card>
-        <CardHeader><CardTitle>Acompanhar clientes que sumiram</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Acompanhar clientes que sumiram</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-4">
           <label className="flex items-center gap-3">
             <input
@@ -86,13 +96,16 @@ export function AcompanhamentoClient() {
               onChange={(e) => patch({ enabled: e.target.checked })}
             />
             <span className="text-sm">
-              Deixe a IA mandar uma mensagem amigável para quem parou de responder ou não
-              compareceu — sem você precisar lembrar.
+              Deixe a IA mandar uma mensagem amigável para quem parou de
+              responder ou não compareceu — sem você precisar lembrar.
             </span>
           </label>
 
           {value.enabled && (
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3" data-testid="intensity-cards">
+            <div
+              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
+              data-testid="intensity-cards"
+            >
               {INTENSITIES.map((opt: Intensity) => (
                 <button
                   key={opt}
@@ -100,11 +113,17 @@ export function AcompanhamentoClient() {
                   data-testid={`intensity-${opt}`}
                   onClick={() => patch({ intensity: opt })}
                   className={`rounded-md border p-3 text-left text-sm ${
-                    value.intensity === opt ? "border-s4s-blue bg-blue-50" : "border-gray-200"
+                    value.intensity === opt
+                      ? "border-s4s-blue bg-blue-50"
+                      : "border-gray-200"
                   }`}
                 >
-                  <div className="font-medium">{INTENSITY_LABELS[opt].titulo}</div>
-                  <div className="text-muted-foreground">{INTENSITY_LABELS[opt].desc}</div>
+                  <div className="font-medium">
+                    {INTENSITY_LABELS[opt].titulo}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {INTENSITY_LABELS[opt].desc}
+                  </div>
                 </button>
               ))}
             </div>
@@ -115,21 +134,34 @@ export function AcompanhamentoClient() {
       {/* MODO AVANÇADO */}
       {value.enabled && (
         <details className="rounded-md border border-gray-200 p-4">
-          <summary className="cursor-pointer text-sm font-medium">Opções avançadas</summary>
+          <summary className="cursor-pointer text-sm font-medium">
+            Opções avançadas
+          </summary>
           <div className="mt-4 space-y-4">
             <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Quais acompanhamentos ligar</legend>
-              {([
-                ["followup_enabled", "Quem parou de responder"],
-                ["noshow_enabled", "Quem não compareceu ao horário"],
-                ["nutricao_enabled", "Reativar clientes antigos (30/60/90 dias)"],
-              ] as const).map(([key, label]) => (
+              <legend className="text-sm font-medium">
+                Quais acompanhamentos ligar
+              </legend>
+              {(
+                [
+                  ["followup_enabled", "Quem parou de responder"],
+                  ["noshow_enabled", "Quem não compareceu ao horário"],
+                  [
+                    "nutricao_enabled",
+                    "Reativar clientes antigos (30/60/90 dias)",
+                  ],
+                ] as const
+              ).map(([key, label]) => (
                 <label key={key} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     data-testid={`track-${key}`}
                     checked={value[key]}
-                    onChange={(e) => patch({ [key]: e.target.checked } as Partial<FollowupConfig>)}
+                    onChange={(e) =>
+                      patch({
+                        [key]: e.target.checked,
+                      } as Partial<FollowupConfig>)
+                    }
                   />
                   {label}
                 </label>
@@ -142,7 +174,9 @@ export function AcompanhamentoClient() {
                   type="checkbox"
                   data-testid="toggle-qualquer-hora"
                   checked={!value.respeitar_horario}
-                  onChange={(e) => patch({ respeitar_horario: !e.target.checked })}
+                  onChange={(e) =>
+                    patch({ respeitar_horario: !e.target.checked })
+                  }
                 />
                 Enviar a qualquer hora (ignorar meu horário de atendimento)
               </label>
@@ -152,8 +186,9 @@ export function AcompanhamentoClient() {
                   data-testid="aviso-invasivo"
                   className="rounded-md border border-yellow-300 bg-yellow-50 p-2 text-xs text-yellow-900"
                 >
-                  ⚠️ Atenção: assim a IA pode mandar mensagem de madrugada (ex.: 2h da manhã) em
-                  seu nome. A maioria dos clientes prefere receber dentro do horário comercial.
+                  ⚠️ Atenção: assim a IA pode mandar mensagem de madrugada (ex.:
+                  2h da manhã) em seu nome. A maioria dos clientes prefere
+                  receber dentro do horário comercial.
                 </p>
               )}
             </div>

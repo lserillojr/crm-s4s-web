@@ -3,8 +3,23 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { AcompanhamentoClient } from "@/app/(dashboard)/settings/acompanhamento/acompanhamento-client";
 
 beforeEach(() => {
-  global.fetch = vi.fn(async () =>
-    new Response(JSON.stringify({ config: { enabled: false, intensity: "padrao", followup_enabled: true, noshow_enabled: true, nutricao_enabled: false, respeitar_horario: true, mensagens: null }, loaded: true }), { status: 200 }),
+  global.fetch = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          config: {
+            enabled: false,
+            intensity: "padrao",
+            followup_enabled: true,
+            noshow_enabled: true,
+            nutricao_enabled: false,
+            respeitar_horario: true,
+            mensagens: null,
+          },
+          loaded: true,
+        }),
+        { status: 200 },
+      ),
   ) as any;
 });
 

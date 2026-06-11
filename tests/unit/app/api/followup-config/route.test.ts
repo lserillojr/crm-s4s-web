@@ -34,7 +34,10 @@ describe("GET /api/followup-config", () => {
   });
 
   it("devolve defaults quando o tenant nao tem linha (config null)", async () => {
-    (callAiService as any).mockResolvedValue({ ok: true, data: { config: null } });
+    (callAiService as any).mockResolvedValue({
+      ok: true,
+      data: { config: null },
+    });
     const res = await GET({} as any);
     const body = await res.json();
     expect(body.config.enabled).toBe(false);
@@ -51,7 +54,9 @@ describe("PUT /api/followup-config", () => {
 
   it("salva config válida (200)", async () => {
     (callAiService as any).mockResolvedValue({ ok: true, data: {} });
-    const req = { json: async () => ({ ...followupConfigDefaults, enabled: true }) } as any;
+    const req = {
+      json: async () => ({ ...followupConfigDefaults, enabled: true }),
+    } as any;
     const res = await PUT(req);
     expect(res.status).toBe(200);
     expect(callAiService).toHaveBeenCalled();

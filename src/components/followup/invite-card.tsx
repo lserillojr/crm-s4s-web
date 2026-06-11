@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { followupConfigDefaults, followupConfigSchema } from "@/lib/followup/schema";
+import {
+  followupConfigDefaults,
+  followupConfigSchema,
+} from "@/lib/followup/schema";
 
 const ENDPOINT = "/api/followup-config";
 
@@ -34,7 +37,11 @@ export function FollowupInviteCard() {
       const res = await fetch(ENDPOINT, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...followupConfigDefaults, enabled: true, intensity: "padrao" }),
+        body: JSON.stringify({
+          ...followupConfigDefaults,
+          enabled: true,
+          intensity: "padrao",
+        }),
       });
       if (res.ok) setShow(false);
     } finally {
@@ -45,11 +52,17 @@ export function FollowupInviteCard() {
   if (!show) return null;
 
   return (
-    <Card data-testid="followup-invite" className="border-s4s-blue/40 bg-blue-50/40">
+    <Card
+      data-testid="followup-invite"
+      className="border-s4s-blue/40 bg-blue-50/40"
+    >
       <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm">
-          <strong>Quer que eu reative clientes que pararam de responder?</strong> Eu mando uma
-          mensagem amigável no seu nome — dentro do seu horário de atendimento.
+          <strong>
+            Quer que eu reative clientes que pararam de responder?
+          </strong>{" "}
+          Eu mando uma mensagem amigável no seu nome — dentro do seu horário de
+          atendimento.
         </p>
         <Button
           type="button"

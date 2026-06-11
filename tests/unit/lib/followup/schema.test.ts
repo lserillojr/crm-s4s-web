@@ -1,9 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { followupConfigSchema, followupConfigDefaults, INTENSITIES } from "@/lib/followup/schema";
+import {
+  followupConfigSchema,
+  followupConfigDefaults,
+  INTENSITIES,
+} from "@/lib/followup/schema";
 
 describe("followupConfigSchema", () => {
   it("aceita a config default", () => {
-    expect(followupConfigSchema.safeParse(followupConfigDefaults).success).toBe(true);
+    expect(followupConfigSchema.safeParse(followupConfigDefaults).success).toBe(
+      true,
+    );
   });
 
   it("default nasce desligado em intensidade padrao", () => {
