@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import { CreateAppointmentInput } from "@/lib/agenda/contract";
+import type { ContactSuggestion } from "@/lib/agenda/contract";
 import { localInputToIso } from "@/lib/agenda/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ContactPicker } from "@/components/agenda/contact-picker";
 import { cn } from "@/lib/utils";
 
 export interface AppointmentDraft {
@@ -14,6 +16,9 @@ export interface AppointmentDraft {
   contactPhone?: string;
   title?: string;
   online?: boolean;
+  contactEmail?: string;
+  odooPartnerId?: number;
+  invite?: boolean;
 }
 
 interface Props {
@@ -34,9 +39,24 @@ export function AppointmentForm({
   const [durationMin, setDurationMin] = useState(String(defaultDurationMin));
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [partnerId, setPartnerId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [online, setOnline] = useState(false);
+  const [invite, setInvite] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  const onPickContact = (c: ContactSuggestion) => {
+    setContactName(c.name);
+    setContactPhone(c.phone ?? "");
+    setContactEmail(c.email ?? "");
+    setPartnerId(c.id);
+  };
+
+  const onCreateNewContact = (name: string) => {
+    setContactName(name);
+    setPartnerId(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +69,9 @@ export function AppointmentForm({
       contactPhone: contactPhone || undefined,
       title: title || undefined,
       online,
+      contactEmail: contactEmail || undefined,
+      odooPartnerId: partnerId ?? undefined,
+      invite: invite && online && !!contactEmail,
     };
     const result = CreateAppointmentInput.safeParse(draft);
     if (!result.success) {
@@ -57,6 +80,8 @@ export function AppointmentForm({
     }
     onSubmit(result.data);
   };
+
+  const inviteEnabled = online && !!contactEmail;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 rounded-md border bg-white p-4" aria-label="Novo agendamento">
@@ -86,11 +111,9 @@ export function AppointmentForm({
             onChange={(e) => setDurationMin(e.target.value)} disabled={isPending} required />
         </div>
       </div>
-      <div className="space-y-1">
-        <Label htmlFor="appt-contact">Cliente</Label>
-        <Input id="appt-contact" type="text" placeholder="Nome do cliente" value={contactName}
-          onChange={(e) => setContactName(e.target.value)} disabled={isPending} maxLength={120} />
-      </div>
+      <ContactPicker value={contactName} disabled={isPending}
+        onChange={(n) => { setContactName(n); setPartnerId(null); }}
+        onPick={onPickContact} onCreateNew={onCreateNewContact} />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1">
           <Label htmlFor="appt-title">Serviço / descrição</Label>
@@ -103,12 +126,26 @@ export function AppointmentForm({
             onChange={(e) => setContactPhone(e.target.value)} disabled={isPending} maxLength={40} />
         </div>
       </div>
+      <div className="space-y-1">
+        <Label htmlFor="appt-email">E-mail (p/ convite)</Label>
+        <Input id="appt-email" type="email" value={contactEmail}
+          onChange={(e) => setContactEmail(e.target.value)} disabled={isPending} maxLength={160} />
+      </div>
       <div className="flex items-center gap-2">
         <input id="appt-online" type="checkbox" checked={online}
           onChange={(e) => setOnline(e.target.checked)} disabled={isPending}
           className="h-4 w-4 rounded border-muted-foreground/40" />
         <Label htmlFor="appt-online" className="text-sm font-normal text-muted-foreground">
           Reunião online (gerar link de vídeo)
+        </Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <input id="appt-invite" type="checkbox" checked={invite && online && !!contactEmail}
+          onChange={(e) => setInvite(e.target.checked)}
+          disabled={isPending || !inviteEnabled}
+          className="h-4 w-4 rounded border-muted-foreground/40" />
+        <Label htmlFor="appt-invite" className="text-sm font-normal text-muted-foreground">
+          Convidar o cliente por e-mail (com o link)
         </Label>
       </div>
       <div className="flex justify-end gap-2">

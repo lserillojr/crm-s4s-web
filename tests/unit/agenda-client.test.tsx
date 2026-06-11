@@ -61,6 +61,7 @@ vi.mock("@/lib/agenda/use-agenda", () => ({
   useCancelAppointment: () => mockCancelAppt,
   useRescheduleAppointment: () => mockRescheduleAppt,
   useCreateAppointment: () => mockCreateAppt,
+  useContactSearch: () => ({ data: [], isFetching: false }),
 }));
 
 // ---------------------------------------------------------------------------
