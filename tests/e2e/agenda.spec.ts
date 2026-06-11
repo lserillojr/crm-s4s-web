@@ -268,3 +268,70 @@ test("cancelar chama a API de cancel e o painel fecha", async ({ page }) => {
   // Confirma que a API foi chamada
   expect(cancelRequested).toBe(true);
 });
+
+// ---------------------------------------------------------------------------
+
+test("agendar vinculando contato Odoo + online + convite", async ({ page }) => {
+  // Fluxo: abre formulario via celula -> digita nome -> escolhe sugestao Odoo ->
+  // marca online + convite -> submete -> POST body contem odoo_partner_id, invite,
+  // contact_email.
+
+  await page.route("**/api/agenda/contacts/search*", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        results: [{ id: 7, name: "Ana Silva", phone: "11", email: "ana@x.com" }],
+      }),
+    }),
+  );
+
+  let body: Record<string, unknown> | null = null;
+  await page.route("**/api/agenda/appointments", async (r) => {
+    if (r.request().method() !== "POST") { r.fallback(); return; }
+    body = JSON.parse(r.request().postData() ?? "{}") as Record<string, unknown>;
+    await r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ id: "a1" }),
+    });
+  });
+
+  await page.route("**/api/agenda/list**", (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ appointments: [], blocks: [] }),
+    }),
+  );
+
+  await page.goto("/agenda");
+
+  // Aguarda grade carregada e abre o formulario de criacao
+  const firstCell = page.getByRole("button", { name: /^Criar em / }).first();
+  await expect(firstCell).toBeVisible();
+  await firstCell.click();
+
+  // AppointmentForm deve abrir
+  await expect(page.getByRole("form", { name: "Novo agendamento" })).toBeVisible();
+
+  // Digita o nome do cliente para acionar a busca de contatos Odoo
+  await page.getByLabel(/cliente/i).fill("Ana");
+
+  // Escolhe a sugestao retornada pela API de contatos
+  await page.getByText("Ana Silva").click();
+
+  // Marca reuniao online e convite ao cliente
+  await page.getByLabel(/reuni[aã]o online/i).check();
+  await page.getByLabel(/convidar o cliente/i).check();
+
+  // Submete o formulario
+  await page.getByRole("button", { name: /^Agendar$/ }).click();
+
+  // Verifica que o POST body contem os campos esperados
+  await expect.poll(() => body?.odoo_partner_id, { timeout: 5000 }).toBe(7);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const captured = body as unknown as Record<string, unknown>;
+  expect(captured.invite).toBe(true);
+  expect(captured.contact_email).toBe("ana@x.com");
+});
