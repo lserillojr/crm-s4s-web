@@ -17,6 +17,7 @@ export const agendaItemSchema = z.object({
       status: z.string(),
       source: z.string(),
       title: z.string().nullable().optional(),
+      meetLink: z.string().nullable().optional(),
     }),
   ),
   blocks: z.array(
@@ -64,5 +65,6 @@ export const CreateAppointmentInput = z.object({
   contactName: z.string().max(120).optional(),
   contactPhone: z.string().max(40).optional(),
   title: z.string().max(120).optional(),
+  online: z.boolean().optional(),
 });
 export type CreateAppointmentInput = z.infer<typeof CreateAppointmentInput>;

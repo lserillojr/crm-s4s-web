@@ -144,3 +144,34 @@ describe("agendaItemSchema title", () => {
     expect(r.success).toBe(true);
   });
 });
+
+describe("CreateAppointmentInput online", () => {
+  it("aceita online boolean", () => {
+    const r = CreateAppointmentInput.safeParse({
+      startIso: "2026-09-10T13:00:00-03:00", durationMin: 30, online: true,
+    });
+    expect(r.success).toBe(true);
+  });
+  it("online é opcional", () => {
+    const r = CreateAppointmentInput.safeParse({
+      startIso: "2026-09-10T13:00:00-03:00", durationMin: 30,
+    });
+    expect(r.success).toBe(true);
+  });
+});
+
+describe("agendaItemSchema meetLink", () => {
+  it("aceita appointment com meetLink", () => {
+    const r = agendaItemSchema.safeParse({
+      appointments: [{ id: "1", start: "2026-09-10T13:00:00-03:00",
+        end: "2026-09-10T13:30:00-03:00", contactName: "Ana", title: null,
+        meetLink: "https://meet.google.com/abc", status: "confirmado", source: "manual" }],
+      blocks: [],
+    });
+    expect(r.success).toBe(true);
+    // o campo precisa ser PRESERVADO (não stripado) — o painel lê data.meetLink
+    if (r.success) {
+      expect(r.data.appointments[0]?.meetLink).toBe("https://meet.google.com/abc");
+    }
+  });
+});
