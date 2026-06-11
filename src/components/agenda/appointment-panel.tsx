@@ -54,6 +54,13 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
         </div>
       )}
 
+      {item.kind === "appt" && item.odooPartnerId && (
+        <div className="flex items-center gap-2 rounded-md bg-s4s-gray-light px-3 py-2 text-xs text-muted-foreground">
+          <span className="font-medium">Vinculado ao Odoo</span>
+          {item.contactEmail && <span>· {item.contactEmail}</span>}
+        </div>
+      )}
+
       {item.kind === "appt" && item.status !== "cancelado" && !rescheduling && (
         <div className="flex gap-2">
           <Button type="button" size="sm" variant="outline" disabled={isPending}

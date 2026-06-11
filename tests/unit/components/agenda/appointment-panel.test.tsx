@@ -51,3 +51,12 @@ describe("AppointmentPanel — link do Meet", () => {
     expect(screen.queryByText(/videochamada/i)).not.toBeInTheDocument();
   });
 });
+
+describe("AppointmentPanel — vínculo Odoo", () => {
+  it("mostra selo 'vinculado' + e-mail quando contactEmail/odooPartnerId", () => {
+    render(<AppointmentPanel item={{ ...appt, contactEmail: "a@x.com", odooPartnerId: 7 }} isPending={false}
+      onClose={() => {}} onReschedule={() => {}} onCancel={() => {}} onDeleteBlock={() => {}} />);
+    expect(screen.getByText(/vinculado ao odoo/i)).toBeInTheDocument();
+    expect(screen.getByText(/a@x\.com/)).toBeInTheDocument();
+  });
+});

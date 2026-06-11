@@ -11,6 +11,8 @@ export interface GridItem {
   source: "ia" | "manual" | "block";
   status: string;
   meetLink?: string | null;
+  contactEmail?: string | null;
+  odooPartnerId?: number | null;
 }
 
 const GRID_START_HOUR = 7;
