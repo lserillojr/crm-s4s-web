@@ -13,6 +13,7 @@ export interface AppointmentDraft {
   contactName?: string;
   contactPhone?: string;
   title?: string;
+  online?: boolean;
 }
 
 interface Props {
@@ -34,6 +35,7 @@ export function AppointmentForm({
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [title, setTitle] = useState("");
+  const [online, setOnline] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,6 +48,7 @@ export function AppointmentForm({
       contactName: contactName || undefined,
       contactPhone: contactPhone || undefined,
       title: title || undefined,
+      online,
     };
     const result = CreateAppointmentInput.safeParse(draft);
     if (!result.success) {
@@ -99,6 +102,14 @@ export function AppointmentForm({
           <Input id="appt-phone" type="tel" value={contactPhone}
             onChange={(e) => setContactPhone(e.target.value)} disabled={isPending} maxLength={40} />
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <input id="appt-online" type="checkbox" checked={online}
+          onChange={(e) => setOnline(e.target.checked)} disabled={isPending}
+          className="h-4 w-4 rounded border-muted-foreground/40" />
+        <Label htmlFor="appt-online" className="text-sm font-normal text-muted-foreground">
+          Reunião online (gerar link de vídeo)
+        </Label>
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={isPending}>Cancelar</Button>

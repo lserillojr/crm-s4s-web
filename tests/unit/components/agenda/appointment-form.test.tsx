@@ -34,4 +34,29 @@ describe("AppointmentForm", () => {
     );
     expect(screen.getByText(/já está ocupado/i)).toBeInTheDocument();
   });
+
+  it("marca 'Reunião online' → online=true no submit", () => {
+    const onSubmit = vi.fn();
+    render(
+      <AppointmentForm isPending={false} isError={false} isConflict={false}
+        defaultStart="2026-09-10T13:00" defaultDurationMin={60}
+        onSubmit={onSubmit} onCancel={() => {}} />,
+    );
+    fireEvent.click(screen.getByLabelText(/reunião online/i));
+    fireEvent.submit(screen.getByRole("form", { name: /novo agendamento/i }));
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(onSubmit.mock.calls[0]![0].online).toBe(true);
+  });
+
+  it("sem marcar → online ausente/false no submit", () => {
+    const onSubmit = vi.fn();
+    render(
+      <AppointmentForm isPending={false} isError={false} isConflict={false}
+        defaultStart="2026-09-10T13:00" defaultDurationMin={60}
+        onSubmit={onSubmit} onCancel={() => {}} />,
+    );
+    fireEvent.submit(screen.getByRole("form", { name: /novo agendamento/i }));
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    expect(onSubmit.mock.calls[0]![0].online).toBeFalsy();
+  });
 });
