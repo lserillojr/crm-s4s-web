@@ -16,7 +16,7 @@ export interface RawConversation {
   meta?: { sender?: { name?: string } };
   custom_attributes?: RawCustomAttributes;
 }
-export interface RawAttachment { file_type?: string }
+export interface RawAttachment { id?: number; file_type?: string; data_url?: string }
 export interface RawMessage {
   id: number;
   message_type: number; // 0 incoming, 1 outgoing, 2 activity, 3 template
@@ -31,7 +31,7 @@ export type Autor = "cliente" | "ia" | "humano";
 export type TipoMsg = "texto" | "imagem" | "audio" | "documento" | "local";
 export type HandoffStatus = "aberto" | "posse" | "resolvido";
 
-export interface MensagemDTO { id: number; autor: Autor; tipo: TipoMsg; texto: string; em: string | null }
+export interface MensagemDTO { id: number; autor: Autor; tipo: TipoMsg; texto: string; em: string | null; attachmentId?: number }
 export interface ConversaListItemDTO {
   id: number; contato: string; motivo: string; resumoPreview: string;
   status: HandoffStatus; handoffEm: string | null;
@@ -68,7 +68,13 @@ export function mapMensagem(m: RawMessage): MensagemDTO | null {
   const autor = classifyAutor(m);
   if (!autor) return null;
   const tipo = classifyTipo(m);
-  return { id: m.id, autor, tipo, texto: tipo === "texto" ? (m.content ?? "") : "", em: emISO(m.created_at) };
+  const attachmentId = tipo !== "texto" ? m.attachments?.[0]?.id : undefined;
+  return {
+    id: m.id, autor, tipo,
+    texto: tipo === "texto" ? (m.content ?? "") : "",
+    em: emISO(m.created_at),
+    ...(attachmentId !== undefined ? { attachmentId } : {}),
+  };
 }
 
 export function deriveStatus(conv: RawConversation): HandoffStatus {

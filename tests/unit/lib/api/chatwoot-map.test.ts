@@ -110,3 +110,27 @@ describe("mergeAiState", () => {
       .toEqual({ ai_summary: "x", ai_state: "escalated" });
   });
 });
+
+describe("mapMensagem attachmentId (Fase B)", () => {
+  it("inclui attachmentId em mensagem de imagem", () => {
+    const dto = mapMensagem({
+      id: 10, message_type: 0, created_at: 1700000000,
+      attachments: [{ id: 99, file_type: "image", data_url: "https://cw/x.jpg" }],
+    });
+    expect(dto).toMatchObject({ tipo: "imagem", attachmentId: 99 });
+  });
+
+  it("inclui attachmentId em mensagem de áudio", () => {
+    const dto = mapMensagem({
+      id: 11, message_type: 0,
+      attachments: [{ id: 77, file_type: "audio", data_url: "https://cw/a.ogg" }],
+    });
+    expect(dto).toMatchObject({ tipo: "audio", attachmentId: 77 });
+  });
+
+  it("mensagem de texto não tem attachmentId", () => {
+    const dto = mapMensagem({ id: 12, message_type: 0, content: "oi" });
+    expect(dto).toMatchObject({ tipo: "texto" });
+    expect(dto?.attachmentId).toBeUndefined();
+  });
+});
