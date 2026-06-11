@@ -1,4 +1,4 @@
-import { Plug, BookOpen, Clock, type LucideIcon } from "lucide-react";
+import { Plug, BookOpen, Clock, BellRing, type LucideIcon } from "lucide-react";
 
 export interface SettingsSection {
   href: string;
@@ -16,19 +16,29 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     href: "/settings/integracoes",
     label: "Integrações",
-    description: "Status do WhatsApp, Google Agenda e Instagram. Reconecte quando precisar.",
+    description:
+      "Status do WhatsApp, Google Agenda e Instagram. Reconecte quando precisar.",
     icon: Plug,
   },
   {
     href: "/settings/kb",
     label: "Base de Conhecimento",
-    description: "O que sua IA sabe sobre o seu negócio para responder os clientes.",
+    description:
+      "O que sua IA sabe sobre o seu negócio para responder os clientes.",
     icon: BookOpen,
   },
   {
     href: "/settings/working-hours",
     label: "Horários",
-    description: "Defina seus horários de atendimento para a IA agendar nos momentos certos.",
+    description:
+      "Defina seus horários de atendimento para a IA agendar nos momentos certos.",
     icon: Clock,
+  },
+  {
+    href: "/settings/acompanhamento",
+    label: "Acompanhamento",
+    description:
+      "A IA reativa clientes que sumiram ou não compareceram — ligue e ajuste do seu jeito.",
+    icon: BellRing,
   },
 ];

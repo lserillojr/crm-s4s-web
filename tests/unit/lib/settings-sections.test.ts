@@ -2,11 +2,12 @@ import { describe, it, expect } from "vitest";
 import { SETTINGS_SECTIONS } from "@/lib/settings-sections";
 
 describe("SETTINGS_SECTIONS", () => {
-  it("expõe as 3 seções de Configurações na ordem da jornada", () => {
+  it("expõe as seções de Configurações na ordem da jornada", () => {
     expect(SETTINGS_SECTIONS.map((s) => s.href)).toEqual([
       "/settings/integracoes",
       "/settings/kb",
       "/settings/working-hours",
+      "/settings/acompanhamento",
     ]);
   });
 
