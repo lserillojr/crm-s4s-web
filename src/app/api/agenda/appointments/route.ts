@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       { status: 422, headers: NO_STORE },
     );
   }
-  const { startIso, durationMin, contactName, contactPhone, title } = parsed.data;
+  const { startIso, durationMin, contactName, contactPhone, title, online } = parsed.data;
 
   try {
     const r = await callAgendaService(
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
           contact_name: contactName ?? null,
           contact_phone: contactPhone ?? null,
           title: title ?? null,
+          online: online ?? false,
         }),
       },
     );

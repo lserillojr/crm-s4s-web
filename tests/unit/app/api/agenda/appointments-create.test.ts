@@ -38,4 +38,12 @@ describe("POST /api/agenda/appointments", () => {
     const res = await POST(req({ startIso: "2026-09-10T13:00:00-03:00", durationMin: 30 }));
     expect(res.status).toBe(409);
   });
+
+  it("repassa online ao FastAPI (snake_case)", async () => {
+    callAgendaService.mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: "a1", meetLink: null }) });
+    const res = await POST(req({ startIso: "2026-09-10T13:00:00-03:00", durationMin: 30, online: true }));
+    expect(res.status).toBe(200);
+    const init = callAgendaService.mock.calls[0]![1] as { body: string };
+    expect(JSON.parse(init.body)).toMatchObject({ online: true });
+  });
 });
