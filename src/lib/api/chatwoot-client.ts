@@ -7,6 +7,7 @@ export interface ChatwootClient {
   listOpenConversations(): Promise<RawConversation[]>;
   getConversation(id: number): Promise<RawConversation>;
   getMessages(id: number): Promise<RawMessage[]>;
+  getAttachmentUrl(convId: number, attId: number): Promise<string | null>;
   postReply(id: number, content: string): Promise<void>;
   setAiState(id: number, state: string): Promise<void>;
 }
@@ -40,6 +41,16 @@ export function createChatwootClient(cfg: { baseUrl: string; accountId: number; 
     async getMessages(id) {
       const data = await get<{ payload?: RawMessage[] }>(`/conversations/${id}/messages`);
       return data.payload ?? [];
+    },
+    async getAttachmentUrl(convId, attId) {
+      const data = await get<{ payload?: RawMessage[] }>(`/conversations/${convId}/messages`);
+      const att = (data.payload ?? [])
+        .flatMap((m) => m.attachments ?? [])
+        .find((a) => a.id === attId);
+      if (!att?.data_url) return null;
+      return att.data_url.startsWith("http")
+        ? att.data_url
+        : `${cfg.baseUrl.replace(/\/$/, "")}${att.data_url}`;
     },
     postReply(id, content) {
       return post(`/conversations/${id}/messages`, { content, message_type: "outgoing", private: false });

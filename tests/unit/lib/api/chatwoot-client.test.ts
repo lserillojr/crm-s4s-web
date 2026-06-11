@@ -69,3 +69,38 @@ describe("createChatwootClient", () => {
     await expect(cw.getMessages(5)).rejects.toThrow(/500/);
   });
 });
+
+describe("getAttachmentUrl (Fase B)", () => {
+  it("retorna o data_url absoluto do attachment encontrado", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true, status: 200,
+      json: async () => ({ payload: [
+        { id: 1, message_type: 0, attachments: [{ id: 99, file_type: "image", data_url: "https://cw.example/rails/x.jpg" }] },
+      ] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const cw = createChatwootClient(CFG);
+    expect(await cw.getAttachmentUrl(5, 99)).toBe("https://cw.example/rails/x.jpg");
+  });
+
+  it("prefixa baseUrl quando o data_url é relativo", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true, status: 200,
+      json: async () => ({ payload: [
+        { id: 1, message_type: 0, attachments: [{ id: 42, file_type: "audio", data_url: "/rails/a.ogg" }] },
+      ] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const cw = createChatwootClient(CFG);
+    expect(await cw.getAttachmentUrl(5, 42)).toBe("https://chat.example.com/rails/a.ogg");
+  });
+
+  it("retorna null quando o attachment não existe", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true, status: 200, json: async () => ({ payload: [{ id: 1, message_type: 0 }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const cw = createChatwootClient(CFG);
+    expect(await cw.getAttachmentUrl(5, 99)).toBeNull();
+  });
+});
