@@ -1,4 +1,4 @@
-import { Plug, BookOpen, Clock, type LucideIcon } from "lucide-react";
+import { Plug, BookOpen, Clock, BellRing, type LucideIcon } from "lucide-react";
 
 export interface SettingsSection {
   href: string;
@@ -30,5 +30,11 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     label: "Horários",
     description: "Defina seus horários de atendimento para a IA agendar nos momentos certos.",
     icon: Clock,
+  },
+  {
+    href: "/settings/acompanhamento",
+    label: "Acompanhamento",
+    description: "A IA reativa clientes que sumiram ou não compareceram — ligue e ajuste do seu jeito.",
+    icon: BellRing,
   },
 ];
