@@ -170,9 +170,10 @@ test("card criado abre o painel com acoes Reagendar e Cancelar", async ({ page }
 
 // ---------------------------------------------------------------------------
 
-test("reagendar chama a API de reschedule com o novo slot", async ({ page }) => {
-  // Fluxo: abre painel -> clica "Reagendar" -> window.prompt -> aceita ->
-  // API POST reschedule e chamada com newSlotIso.
+test("reagendar pela grade usa date-picker inline", async ({ page }) => {
+  // Fluxo: abre painel -> clica "Reagendar" -> preenche datetime-local inline ->
+  // clica "Confirmar" -> API POST reschedule e chamada com newSlotIso.
+  // O window.prompt NAO e mais usado; o reschedule e feito pelo AppointmentPanel.
   let rescheduleBody: unknown = null;
 
   await page.route("**/api/agenda/list**", (route) =>
@@ -192,16 +193,6 @@ test("reagendar chama a API de reschedule com o novo slot", async ({ page }) => 
     });
   });
 
-  // Interceptar o window.prompt antes de navegar
-  page.on("dialog", (dialog) => {
-    // App espera formato "AAAA-MM-DD HH:MM"
-    const slot = apptSlot();
-    const next = addDays(slot.start, 1); // um dia depois
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const answer = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())} ${pad(next.getHours())}:${pad(next.getMinutes())}`;
-    dialog.accept(answer).catch(() => { /* dialog already dismissed */ });
-  });
-
   await page.goto("/agenda");
   await expect(page.getByText(CARD_LABEL)).toBeVisible();
 
@@ -210,10 +201,21 @@ test("reagendar chama a API de reschedule com o novo slot", async ({ page }) => 
   const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
   await expect(panel).toBeVisible();
 
-  // Clica "Reagendar" -> dispara o window.prompt
+  // Clica "Reagendar" -> expoe o inline date-picker (sem window.prompt)
   await panel.getByRole("button", { name: /^Reagendar$/i }).click();
 
-  // Aguarda a chamada a API de reschedule
+  // Preenche o campo datetime-local com um novo slot (um dia depois do slot atual)
+  const slot = apptSlot();
+  const next = addDays(slot.start, 1);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const newSlotLocal = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+
+  await page.getByLabel(/nova data e hora/i).fill(newSlotLocal);
+
+  // Clica "Confirmar" -> dispara o POST reschedule
+  await page.getByRole("button", { name: /^Confirmar$/i }).click();
+
+  // Aguarda a chamada a API de reschedule com o novo slot ISO
   await expect.poll(() => rescheduleBody, { timeout: 5000 }).toMatchObject({
     newSlotIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/),
   });
