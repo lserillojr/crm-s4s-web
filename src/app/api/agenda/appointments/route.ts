@@ -30,7 +30,7 @@ export async function POST(req: Request) {
       { status: 422, headers: NO_STORE },
     );
   }
-  const { startIso, durationMin, contactName, contactPhone, title, online } = parsed.data;
+  const { startIso, durationMin, contactName, contactPhone, title, online, contactEmail, odooPartnerId, invite } = parsed.data;
 
   try {
     const r = await callAgendaService(
@@ -44,6 +44,9 @@ export async function POST(req: Request) {
           contact_phone: contactPhone ?? null,
           title: title ?? null,
           online: online ?? false,
+          contact_email: contactEmail ?? null,
+          odoo_partner_id: odooPartnerId ?? null,
+          invite: invite ?? false,
         }),
       },
     );

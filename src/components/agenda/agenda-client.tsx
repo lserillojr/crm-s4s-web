@@ -66,7 +66,7 @@ export function AgendaClient() {
   const handleSelect = (item: GridItem) => { setDraftStart(null); setShowBlockForm(false); createAppt.reset(); setSelected(item); };
   const handleSubmitAppt = (draft: AppointmentDraft) => {
     createAppt.mutate(
-      { startIso: draft.startIso, durationMin: draft.durationMin, contactName: draft.contactName, contactPhone: draft.contactPhone, title: draft.title, online: draft.online },
+      { startIso: draft.startIso, durationMin: draft.durationMin, contactName: draft.contactName, contactPhone: draft.contactPhone, title: draft.title, online: draft.online, contactEmail: draft.contactEmail, odooPartnerId: draft.odooPartnerId, invite: draft.invite },
       { onSuccess: () => setDraftStart(null) },
     );
   };

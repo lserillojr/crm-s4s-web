@@ -46,4 +46,12 @@ describe("POST /api/agenda/appointments", () => {
     const init = callAgendaService.mock.calls[0]![1] as { body: string };
     expect(JSON.parse(init.body)).toMatchObject({ online: true });
   });
+
+  it("repassa contact_email, odoo_partner_id, invite ao FastAPI", async () => {
+    callAgendaService.mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: "a1" }) });
+    await POST(req({ startIso: "2026-09-10T13:00:00-03:00", durationMin: 30, contactName: "Ana",
+      contactEmail: "a@x.com", odooPartnerId: 7, online: true, invite: true }));
+    const init = callAgendaService.mock.calls[0]![1] as { body: string };
+    expect(JSON.parse(init.body)).toMatchObject({ contact_email: "a@x.com", odoo_partner_id: 7, invite: true });
+  });
 });
