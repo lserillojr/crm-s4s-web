@@ -1,6 +1,6 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { agendaItemSchema, type AgendaList, type BlockInput, type RescheduleInput, type CreateAppointmentInput } from "@/lib/agenda/contract";
+import { agendaItemSchema, ContactSearchResult, type AgendaList, type BlockInput, type ContactSuggestion, type RescheduleInput, type CreateAppointmentInput } from "@/lib/agenda/contract";
 
 /**
  * Hook da tela /agenda. Busca os agendamentos/bloqueios do período [from, to)
@@ -96,6 +96,20 @@ export function useCreateAppointment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agenda-list"] });
+    },
+  });
+}
+
+/** Autocomplete de contato Odoo — só busca com 3+ chars (debounce natural via re-render + staleTime). */
+export function useContactSearch(term: string) {
+  return useQuery({
+    queryKey: ["agenda-contacts", term],
+    enabled: term.trim().length >= 3,
+    staleTime: 30_000,
+    queryFn: async (): Promise<ContactSuggestion[]> => {
+      const res = await fetch(`/api/agenda/contacts/search?term=${encodeURIComponent(term)}`, { cache: "no-store" });
+      if (!res.ok) return [];
+      return ContactSearchResult.parse(await res.json()).results;
     },
   });
 }
