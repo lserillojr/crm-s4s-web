@@ -6,6 +6,7 @@ import {
 } from "@/lib/agenda/use-agenda";
 import type { AgendaList } from "@/lib/agenda/contract";
 import { startOfWeek, addDays, weekDays } from "@/lib/agenda/calendar";
+import { toLocalInput } from "@/lib/agenda/datetime";
 import { Button } from "@/components/ui/button";
 import { CalendarGrid, type GridItem } from "./calendar-grid";
 import { AppointmentForm, type AppointmentDraft } from "./appointment-form";
@@ -13,12 +14,6 @@ import { AppointmentPanel } from "./appointment-panel";
 import { BlockForm } from "./block-form";
 
 type View = "week" | "day";
-
-/** datetime-local string ("YYYY-MM-DDTHH:mm") a partir de um Date local. */
-function toLocalInput(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 /** "YYYY-MM-DD" a partir dos componentes LOCAIS do Date (não UTC — evita
  *  off-by-one em fusos UTC+, já que gridStart é meia-noite local). */
 const ymd = (d: Date) => {
