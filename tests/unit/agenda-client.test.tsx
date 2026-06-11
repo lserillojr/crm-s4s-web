@@ -178,23 +178,16 @@ describe("AgendaClient (grade)", () => {
     expect(mockDeleteBlock.mutate).toHaveBeenCalledWith("b1", expect.any(Object));
   });
 
-  it("clicar em 'Reagendar' no painel chama rescheduleAppt.mutate quando window.prompt retorna valor", () => {
-    vi.spyOn(window, "prompt").mockReturnValue("2026-06-15 10:00");
+  it("reagendar pelo painel chama rescheduleAppt.mutate com o novo ISO", () => {
     render(<AgendaClient />);
     fireEvent.click(screen.getByText("Ana Cliente"));
-    fireEvent.click(screen.getByRole("button", { name: /reagendar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^reagendar$/i }));
+    fireEvent.change(screen.getByLabelText(/nova data e hora/i), { target: { value: "2026-06-15T10:00" } });
+    fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
     expect(mockRescheduleAppt.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ id: "a1", newSlotIso: expect.stringContaining("2026-06-15") }),
       expect.any(Object),
     );
-  });
-
-  it("clicar em 'Reagendar' NÃO chama mutate quando window.prompt é cancelado (null)", () => {
-    vi.spyOn(window, "prompt").mockReturnValue(null);
-    render(<AgendaClient />);
-    fireEvent.click(screen.getByText("Ana Cliente"));
-    fireEvent.click(screen.getByRole("button", { name: /reagendar/i }));
-    expect(mockRescheduleAppt.mutate).not.toHaveBeenCalled();
   });
 
   it("botão '+ Bloquear' abre o BlockForm", () => {

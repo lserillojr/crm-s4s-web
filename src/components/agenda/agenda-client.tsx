@@ -70,16 +70,8 @@ export function AgendaClient() {
       { onSuccess: () => setDraftStart(null) },
     );
   };
-  const handleReschedule = (item: GridItem) => {
-    const novo = window.prompt("Nova data e hora (AAAA-MM-DD HH:MM):");
-    if (!novo) return;
-    const d = new Date(novo.replace(" ", "T"));
-    if (Number.isNaN(d.getTime())) return;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const off = -d.getTimezoneOffset(); const sign = off >= 0 ? "+" : "-";
-    const oh = pad(Math.floor(Math.abs(off) / 60)); const om = pad(Math.abs(off) % 60);
-    const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${oh}:${om}`;
-    rescheduleAppt.mutate({ id: item.id, newSlotIso: iso }, { onSuccess: () => setSelected(null) });
+  const handleReschedule = (item: GridItem, newSlotIso: string) => {
+    rescheduleAppt.mutate({ id: item.id, newSlotIso }, { onSuccess: () => setSelected(null) });
   };
 
   return (
@@ -117,7 +109,7 @@ export function AgendaClient() {
       )}
       {/* Painel do card selecionado */}
       {selected && (
-        <AppointmentPanel item={selected} isPending={cancelAppt.isPending || deleteBlock.isPending || rescheduleAppt.isPending}
+        <AppointmentPanel key={selected.id} item={selected} isPending={cancelAppt.isPending || deleteBlock.isPending || rescheduleAppt.isPending}
           onClose={() => setSelected(null)}
           onReschedule={handleReschedule}
           onCancel={(id) => cancelAppt.mutate(id, { onSuccess: () => setSelected(null) })}
