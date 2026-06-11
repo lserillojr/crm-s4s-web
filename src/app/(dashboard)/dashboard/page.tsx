@@ -3,6 +3,7 @@ import { useDashboardSummary } from "@/lib/dashboard/use-dashboard-summary";
 import { MessagesCard } from "@/components/dashboard/messages-card";
 import { LeadsCard } from "@/components/dashboard/leads-card";
 import { NextMeetingCard } from "@/components/dashboard/next-meeting-card";
+import { FollowupInviteCard } from "@/components/followup/invite-card";
 
 export default function DashboardPage() {
   const { data, isLoading, isError } = useDashboardSummary();
@@ -26,6 +27,8 @@ export default function DashboardPage() {
             : `Sua IA atendeu ${week} conversa${week === 1 ? "" : "s"} esta semana.`}
         </p>
       </header>
+
+      <FollowupInviteCard />
 
       <section className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="Resumo do dia">
         <MessagesCard count={ct?.count ?? 0} trend={ct?.trend ?? "flat"} vsYesterday={ct?.vsYesterday ?? 0} />
