@@ -1,11 +1,28 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { signIn } from "@/auth";
+
+// As server actions abaixo disparam `signIn`, que lê env do issuer Keycloak em
+// runtime; sem isto a landing seria pré-renderizada estática em build.
+export const dynamic = "force-dynamic";
 
 /**
- * Landing root. Fase 1 scaffold: explica posicionamento + CTAs para signup/login.
- * Fase 2+ pode evoluir pra hero animado, prova social, FAQ etc.
+ * Landing root. Os dois CTAs disparam o SSO do Keycloak DIRETO (sem a parada
+ * intermediária em /signup ou /login) — um clique só. As páginas /login e
+ * /signup seguem existindo como destino do middleware/logout (casos de borda).
  */
 export default function HomePage() {
+  // "Já tenho conta": login normal → painel.
+  async function entrar() {
+    "use server";
+    await signIn("keycloak", { redirectTo: "/dashboard" });
+  }
+
+  // "Começar grátis": tela de registro do Keycloak (prompt=create) → wizard.
+  async function criarConta() {
+    "use server";
+    await signIn("keycloak", { redirectTo: "/wizard" }, { prompt: "create" });
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-s4s-blue to-s4s-magenta p-8 text-white">
       <div className="max-w-2xl space-y-6 text-center">
@@ -16,20 +33,28 @@ export default function HomePage() {
           Sua secretária digital com IA, 24/7, atendendo no WhatsApp e Instagram.
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Link href="/signup">
-            <Button size="lg" variant="secondary" className="text-s4s-blue">
+          <form action={criarConta}>
+            <Button
+              type="submit"
+              size="lg"
+              variant="secondary"
+              className="text-s4s-blue"
+              data-testid="signup-keycloak"
+            >
               Começar grátis 7 dias
             </Button>
-          </Link>
-          <Link href="/login">
+          </form>
+          <form action={entrar}>
             <Button
+              type="submit"
               size="lg"
               variant="outline"
               className="border-white bg-transparent text-white hover:bg-white hover:text-s4s-blue"
+              data-testid="login-keycloak"
             >
               Já tenho conta
             </Button>
-          </Link>
+          </form>
         </div>
         <p className="pt-8 text-sm opacity-70">
           Versão: fase 1 scaffold • Sub-Projeto 2 do Portal Único

@@ -9,17 +9,19 @@ import { test, expect } from "@playwright/test";
  * - /login mostra formulário de login (fase 2: botão Entrar com S4S ativo)
  */
 
-test("landing renderiza com CTA e links", async ({ page }) => {
+test("landing renderiza com CTAs que disparam o SSO direto", async ({ page }) => {
   await page.goto("/");
   await expect(page).toHaveTitle(/S4S Recepcionista IA/);
   await expect(
     page.getByRole("heading", { name: "S4S Recepcionista IA" })
   ).toBeVisible();
+  // CTAs agora são botões (submit) que abrem o Keycloak direto, não mais links
+  // para /signup e /login — sem a segunda tela intermediária.
   await expect(
-    page.getByRole("link", { name: "Começar grátis 7 dias" })
+    page.getByRole("button", { name: "Começar grátis 7 dias" })
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Já tenho conta" })
+    page.getByRole("button", { name: "Já tenho conta" })
   ).toBeVisible();
 });
 
