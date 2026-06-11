@@ -22,9 +22,9 @@ describe("POST /api/agenda/appointments", () => {
     callAgendaService.mockResolvedValue({ ok: true, status: 200, json: async () => ({ id: "a1" }) });
     const res = await POST(req({ startIso: "2026-09-10T13:00:00-03:00", durationMin: 30, contactName: "Ana", title: "corte" }));
     expect(res.status).toBe(200);
-    const url = callAgendaService.mock.calls[0][0] as string;
+    const url = callAgendaService.mock.calls[0]![0] as string;
     expect(url).toContain("/agenda/appointments?tenant=tn-1");
-    const init = callAgendaService.mock.calls[0][1] as { body: string };
+    const init = callAgendaService.mock.calls[0]![1] as { body: string };
     expect(JSON.parse(init.body)).toMatchObject({ start: "2026-09-10T13:00:00-03:00", duration_min: 30, contact_name: "Ana", title: "corte" });
   });
 
