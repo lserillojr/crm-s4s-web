@@ -10,6 +10,7 @@ export interface GridItem {
   label: string;
   source: "ia" | "manual" | "block";
   status: string;
+  meetLink?: string | null;
 }
 
 const GRID_START_HOUR = 7;

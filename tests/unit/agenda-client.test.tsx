@@ -12,7 +12,10 @@ afterEach(() => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const mockAppointment = {
+const mockAppointment: {
+  id: string; start: string; end: string; contactName: string;
+  status: string; source: string; meetLink?: string | null;
+} = {
   id: "a1",
   start: "2026-06-10T13:00:00Z",
   end: "2026-06-10T14:00:00Z",
@@ -248,5 +251,18 @@ describe("AgendaClient (grade)", () => {
     mockUseAgendaReturn = { data: undefined, isLoading: false, isError: false };
     render(<AgendaClient />);
     expect(screen.queryByTestId("calendar-grid")).not.toBeInTheDocument();
+  });
+
+  it("carrega meetLink do appointment no GridItem", () => {
+    mockUseAgendaReturn = {
+      data: {
+        appointments: [{ ...mockAppointment, meetLink: "https://meet.google.com/abc" }],
+        blocks: [],
+      },
+      isLoading: false, isError: false,
+    };
+    render(<AgendaClient />);
+    const appt = capturedItems.find((i) => i.kind === "appt");
+    expect(appt?.meetLink).toBe("https://meet.google.com/abc");
   });
 });

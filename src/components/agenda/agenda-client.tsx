@@ -27,6 +27,7 @@ function toGridItems(data: AgendaList): GridItem[] {
     kind: "appt", id: a.id, start: new Date(a.start), end: new Date(a.end),
     label: a.title ? `${a.contactName ?? "Cliente"} — ${a.title}` : (a.contactName ?? "Cliente"),
     source: a.source === "ia" ? "ia" : "manual", status: a.status,
+    meetLink: a.meetLink ?? null,
   }));
   const blocks: GridItem[] = data.blocks.map((b) => ({
     kind: "block", id: b.id, start: new Date(b.start), end: new Date(b.end),
@@ -65,7 +66,7 @@ export function AgendaClient() {
   const handleSelect = (item: GridItem) => { setDraftStart(null); setShowBlockForm(false); createAppt.reset(); setSelected(item); };
   const handleSubmitAppt = (draft: AppointmentDraft) => {
     createAppt.mutate(
-      { startIso: draft.startIso, durationMin: draft.durationMin, contactName: draft.contactName, contactPhone: draft.contactPhone, title: draft.title },
+      { startIso: draft.startIso, durationMin: draft.durationMin, contactName: draft.contactName, contactPhone: draft.contactPhone, title: draft.title, online: draft.online },
       { onSuccess: () => setDraftStart(null) },
     );
   };
