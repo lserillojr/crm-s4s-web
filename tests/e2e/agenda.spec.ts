@@ -329,9 +329,11 @@ test("agendar vinculando contato Odoo + online + convite", async ({ page }) => {
   await page.getByRole("button", { name: /^Agendar$/ }).click();
 
   // Verifica que o POST body contem os campos esperados
-  await expect.poll(() => body?.odoo_partner_id, { timeout: 5000 }).toBe(7);
+  // O POST do browser -> Next route usa camelCase (o route.ts converte p/ snake_case
+  // server-side, depois deste ponto de interceptacao).
+  await expect.poll(() => body?.odooPartnerId, { timeout: 5000 }).toBe(7);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const captured = body as unknown as Record<string, unknown>;
   expect(captured.invite).toBe(true);
-  expect(captured.contact_email).toBe("ana@x.com");
+  expect(captured.contactEmail).toBe("ana@x.com");
 });
