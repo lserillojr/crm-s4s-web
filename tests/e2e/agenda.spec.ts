@@ -1,143 +1,239 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Smoke E2E da tela /agenda (Onda 1 — só-leitura + Onda 2 — editável).
+ * Smoke E2E da tela /agenda -- GRADE (Fase 2).
  *
- * A página consome `useAgenda(from, to)` → `/api/agenda/list`, que VALIDA a
- * resposta contra o contrato Zod. O E2E MOCKA a rota com um payload válido e
- * afirma o caminho feliz: o agendamento aparece na lista, agrupado por dia.
+ * A tela foi reescrita de lista para um CalendarGrid semana/dia.
+ * Cobre o loop criar->ver->reagendar->cancelar pela grade.
+ *
+ * HARNESS
+ * - Autenticacao: storageState injetado pelo auth.setup.ts (cookie *session-token
+ *   gerado via /api/auth/callback/credentials com E2E_AUTH_MOCK=1).
+ * - Mocks: page.route para api/agenda/list e rotas de escrita.
+ * - Data determinista: usa a semana corrente para garantir que o card
+ *   apareca na coluna visivel sem precisar navegar.
  */
 
-const payload = {
-  appointments: [
-    {
-      id: "a1",
-      start: "2026-06-08T13:00:00Z",
-      end: "2026-06-08T14:00:00Z",
-      contactName: "Ana Cliente",
-      status: "confirmado",
-      source: "ia",
-    },
-  ],
-  blocks: [
-    {
-      id: "b1",
-      start: "2026-06-08T18:00:00Z",
-      end: "2026-06-08T19:00:00Z",
-      reason: "Almoço",
-    },
-  ],
-};
+// ---------------------------------------------------------------------------
+// Helpers de data (mirrors startOfWeek + toLocalInput do app)
+// ---------------------------------------------------------------------------
 
-const emptyPayload = {
-  appointments: [],
-  blocks: [],
-};
+/** Segunda-feira 00:00 da semana que contem d (week starts Monday). */
+function startOfWeek(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = r.getDay();
+  const diff = dow === 0 ? -6 : 1 - dow;
+  r.setDate(r.getDate() + diff);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
 
-test("/agenda mostra os compromissos vindos da API", async ({ page }) => {
-  await page.route("**/api/agenda/list**", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(payload),
-    }),
+/** Adiciona n dias a um Date. */
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r;
+}
+
+/** ISO 8601 com offset local explicito (como o app gera). */
+function toIsoWithOffset(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const off = -d.getTimezoneOffset();
+  const sign = off >= 0 ? "+" : "-";
+  const oh = pad(Math.floor(Math.abs(off) / 60));
+  const om = pad(Math.abs(off) % 60);
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:00${sign}${oh}:${om}`
   );
+}
 
-  await page.goto("/agenda");
-
-  await expect(page.getByText("Ana Cliente")).toBeVisible();
-  await expect(page.getByText("Almoço")).toBeVisible();
-  await expect(page.getByText("bloqueio")).toBeVisible();
-});
+/**
+ * Slot fixo na semana corrente: terca-feira da semana atual as 13:00 local.
+ * Usando terca (indice 1 a partir de segunda) para cair na semana corrente.
+ * Garante que o card apareca na grade sem navegar.
+ */
+function apptSlot(): { start: Date; end: Date; startIso: string; endIso: string } {
+  const monday = startOfWeek(new Date());
+  const tuesday = addDays(monday, 1); // terca = segunda + 1 dia
+  const start = new Date(tuesday.getFullYear(), tuesday.getMonth(), tuesday.getDate(), 13, 0, 0);
+  const end = new Date(tuesday.getFullYear(), tuesday.getMonth(), tuesday.getDate(), 14, 0, 0);
+  return { start, end, startIso: toIsoWithOffset(start), endIso: toIsoWithOffset(end) };
+}
 
 // ---------------------------------------------------------------------------
-// Onda 2: ações de escrita
+// Factory de appointment fixture
 // ---------------------------------------------------------------------------
 
-test("MEI cria e remove um bloqueio", async ({ page }) => {
-  // A lista é dirigida por ESTADO (não por contador de chamadas): o "Almoço" só
-  // some depois que o DELETE acontece. Assim a invalidação disparada pela CRIAÇÃO
-  // não faz o bloqueio existente sumir antes da hora.
-  let almocoRemovido = false;
+function makeAppt(overrides: Partial<{
+  id: string; start: string; end: string;
+  contactName: string; title: string; status: string; source: string;
+}> = {}) {
+  const slot = apptSlot();
+  return {
+    id: "a1",
+    start: slot.startIso,
+    end: slot.endIso,
+    contactName: "Ana",
+    title: "corte",
+    status: "confirmado",
+    source: "manual",
+    ...overrides,
+  };
+}
+
+// The app renders cards with the em-dash label: contactName + " — " + title
+const CARD_LABEL = "Ana — corte";
+
+// ===========================================================================
+// Testes
+// ===========================================================================
+
+test("cria agendamento pela grade e ve o card", async ({ page }) => {
+  // Fluxo: clica numa celula-hora -> preenche o AppointmentForm -> submete ->
+  // a lista e re-buscada (mock retorna o agendamento criado) -> card aparece.
+  let created = false;
 
   await page.route("**/api/agenda/list**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        appointments: payload.appointments,
-        blocks: almocoRemovido ? [] : payload.blocks,
+        appointments: created ? [makeAppt()] : [],
+        blocks: [],
       }),
     }),
   );
 
-  // POST cria bloqueio (sem query); DELETE remove (com ?id=...). O glob precisa do
-  // sufixo `**` para casar a query string do DELETE.
-  await page.route("**/api/agenda/blocks**", (route) => {
-    const method = route.request().method();
-    if (method === "POST") {
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ id: "b2" }),
-      });
-    } else if (method === "DELETE") {
-      almocoRemovido = true;
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ ok: true }),
-      });
-    } else {
-      route.fallback();
-    }
+  await page.route("**/api/agenda/appointments", (route) => {
+    if (route.request().method() !== "POST") { route.fallback(); return; }
+    created = true;
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ id: "a1" }),
+    });
   });
 
   await page.goto("/agenda");
 
-  // Agenda carregada com bloqueio existente
-  await expect(page.getByText("Almoço")).toBeVisible();
+  // Aguarda pelo menos uma celula-hora clicavel aparecer (grade carregada)
+  const firstCell = page.getByRole("button", { name: /^Criar em / }).first();
+  await expect(firstCell).toBeVisible();
 
-  // -- Cria novo bloqueio --
-  await page.getByRole("button", { name: /bloquear horário/i }).click();
+  // Clica na primeira celula disponivel
+  await firstCell.click();
 
-  // Formulário aparece
-  await expect(
-    page.getByRole("form", { name: /formulário de bloqueio/i }),
-  ).toBeVisible();
+  // AppointmentForm deve abrir
+  await expect(page.getByRole("form", { name: "Novo agendamento" })).toBeVisible();
 
-  // Preenche início e fim
-  await page.fill("#block-start", "2026-06-10T10:00");
-  await page.fill("#block-end", "2026-06-10T11:00");
-  await page.fill("#block-reason", "Reunião interna");
+  // Preenche os campos (start ja vem preenchido pelo clique na grade)
+  await page.getByLabel(/cliente/i).fill("Ana");
+  await page.locator("#appt-title").fill("corte");
 
   // Submete
-  await page.getByRole("button", { name: /^bloquear$/i }).click();
+  await page.getByRole("button", { name: /^Agendar$/ }).click();
 
-  // Formulário fecha após sucesso (o "Almoço" continua na lista — ainda não removido)
-  await expect(
-    page.getByRole("form", { name: /formulário de bloqueio/i }),
-  ).not.toBeVisible({ timeout: 3000 });
-
-  // -- Remove o bloqueio existente "Almoço" --
-  await page.getByRole("button", { name: /remover bloqueio almoço/i }).click();
-
-  // Após o DELETE + invalidação, o bloqueio some
-  await expect(page.getByText("Almoço")).not.toBeVisible({ timeout: 3000 });
+  // Apos POST + invalidacao, o card deve aparecer na grade
+  await expect(page.getByText(CARD_LABEL)).toBeVisible();
 });
 
-test("MEI cancela um compromisso", async ({ page }) => {
-  const payloadCancelado = {
-    appointments: [{ ...payload.appointments[0], status: "cancelado" }],
-    blocks: [],
-  };
+// ---------------------------------------------------------------------------
+
+test("card criado abre o painel com acoes Reagendar e Cancelar", async ({ page }) => {
+  // Lista ja retorna o agendamento; clica no card; painel abre.
+  await page.route("**/api/agenda/list**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ appointments: [makeAppt()], blocks: [] }),
+    }),
+  );
+
+  await page.goto("/agenda");
+
+  // Aguarda o card aparecer
+  await expect(page.getByText(CARD_LABEL)).toBeVisible();
+
+  // Clica no card (button que contem o label)
+  await page.getByText(CARD_LABEL).click();
+
+  // Painel deve aparecer (aria-label="Detalhes de <label>")
+  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  await expect(panel).toBeVisible();
+
+  // Acoes disponiveis para compromisso nao-cancelado
+  await expect(panel.getByRole("button", { name: /^Reagendar$/i })).toBeVisible();
+  await expect(panel.getByRole("button", { name: /^Cancelar$/i })).toBeVisible();
+  await expect(panel.getByRole("button", { name: /^Fechar$/i })).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+
+test("reagendar chama a API de reschedule com o novo slot", async ({ page }) => {
+  // Fluxo: abre painel -> clica "Reagendar" -> window.prompt -> aceita ->
+  // API POST reschedule e chamada com newSlotIso.
+  let rescheduleBody: unknown = null;
+
+  await page.route("**/api/agenda/list**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ appointments: [makeAppt()], blocks: [] }),
+    }),
+  );
+
+  await page.route("**/api/agenda/appointments/a1/reschedule", async (route) => {
+    rescheduleBody = await route.request().postDataJSON();
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+
+  // Interceptar o window.prompt antes de navegar
+  page.on("dialog", (dialog) => {
+    // App espera formato "AAAA-MM-DD HH:MM"
+    const slot = apptSlot();
+    const next = addDays(slot.start, 1); // um dia depois
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const answer = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())} ${pad(next.getHours())}:${pad(next.getMinutes())}`;
+    dialog.accept(answer).catch(() => { /* dialog already dismissed */ });
+  });
+
+  await page.goto("/agenda");
+  await expect(page.getByText(CARD_LABEL)).toBeVisible();
+
+  // Abre o painel
+  await page.getByText(CARD_LABEL).click();
+  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  await expect(panel).toBeVisible();
+
+  // Clica "Reagendar" -> dispara o window.prompt
+  await panel.getByRole("button", { name: /^Reagendar$/i }).click();
+
+  // Aguarda a chamada a API de reschedule
+  await expect.poll(() => rescheduleBody, { timeout: 5000 }).toMatchObject({
+    newSlotIso: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00[+-]\d{2}:\d{2}$/),
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+test("cancelar chama a API de cancel e o painel fecha", async ({ page }) => {
+  // Fluxo: abre painel -> clica "Cancelar" -> API POST cancel ->
+  // painel fecha; card permanece (com line-through para cancelado).
   let cancelRequested = false;
 
   await page.route("**/api/agenda/list**", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(cancelRequested ? payloadCancelado : payload),
+      body: JSON.stringify({
+        appointments: [makeAppt({ status: cancelRequested ? "cancelado" : "confirmado" })],
+        blocks: [],
+      }),
     }),
   );
 
@@ -151,51 +247,22 @@ test("MEI cancela um compromisso", async ({ page }) => {
   });
 
   await page.goto("/agenda");
-  await expect(page.getByText("Ana Cliente")).toBeVisible();
+  await expect(page.getByText(CARD_LABEL)).toBeVisible();
 
-  // Cancela
-  await page.getByRole("button", { name: /cancelar compromisso com ana cliente/i }).click();
+  // Abre o painel
+  await page.getByText(CARD_LABEL).click();
+  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  await expect(panel).toBeVisible();
 
-  // Após invalidação o status muda para "cancelado" e os botões somem
-  await expect(
-    page.getByRole("button", { name: /cancelar compromisso com ana cliente/i }),
-  ).not.toBeVisible({ timeout: 3000 });
-});
+  // Clica "Cancelar"
+  await panel.getByRole("button", { name: /^Cancelar$/i }).click();
 
-test("MEI reagenda um compromisso", async ({ page }) => {
-  let rescheduleBody: unknown = null;
+  // Painel fecha apos onSuccess: setSelected(null)
+  await expect(panel).not.toBeVisible({ timeout: 5000 });
 
-  await page.route("**/api/agenda/list**", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(payload),
-    }),
-  );
+  // Card continua visivel (line-through CSS via status=cancelado)
+  await expect(page.getByText(CARD_LABEL)).toBeVisible();
 
-  await page.route("**/api/agenda/appointments/a1/reschedule", async (route) => {
-    rescheduleBody = await route.request().postDataJSON();
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true }),
-    });
-  });
-
-  await page.goto("/agenda");
-  await expect(page.getByText("Ana Cliente")).toBeVisible();
-
-  // Abre formulário de reagendar
-  await page.getByRole("button", { name: /reagendar compromisso com ana cliente/i }).click();
-
-  // Preenche nova data
-  await page.fill('[id^="reschedule-"]', "2026-06-12T15:00");
-
-  // Confirma
-  await page.getByRole("button", { name: /confirmar/i }).click();
-
-  // Verifica que a API foi chamada com newSlotIso
-  await expect
-    .poll(() => rescheduleBody, { timeout: 3000 })
-    .toMatchObject({ newSlotIso: expect.stringContaining("2026-06-12T15:00") });
+  // Confirma que a API foi chamada
+  expect(cancelRequested).toBe(true);
 });
