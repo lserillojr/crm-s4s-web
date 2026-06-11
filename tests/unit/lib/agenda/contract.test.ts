@@ -175,3 +175,23 @@ describe("agendaItemSchema meetLink", () => {
     }
   });
 });
+
+describe("CreateAppointmentInput odoo+invite", () => {
+  it("aceita odooPartnerId, contactEmail, invite", () => {
+    const r = CreateAppointmentInput.safeParse({
+      startIso: "2026-09-10T13:00:00-03:00", durationMin: 30,
+      contactName: "Ana", contactEmail: "a@x.com", odooPartnerId: 7, invite: true,
+    });
+    expect(r.success).toBe(true);
+    if (r.success) { expect(r.data.odooPartnerId).toBe(7); expect(r.data.invite).toBe(true); }
+  });
+});
+describe("agendaItemSchema odoo", () => {
+  it("preserva contactEmail e odooPartnerId", () => {
+    const r = agendaItemSchema.safeParse({ appointments: [{ id: "1", start: "2026-09-10T13:00:00-03:00",
+      end: "2026-09-10T13:30:00-03:00", contactName: "Ana", title: null, meetLink: null,
+      contactEmail: "a@x.com", odooPartnerId: 7, status: "confirmado", source: "manual" }], blocks: [] });
+    expect(r.success).toBe(true);
+    if (r.success) { expect(r.data.appointments[0]?.contactEmail).toBe("a@x.com"); expect(r.data.appointments[0]?.odooPartnerId).toBe(7); }
+  });
+});

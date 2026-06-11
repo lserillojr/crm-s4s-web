@@ -18,6 +18,8 @@ export const agendaItemSchema = z.object({
       source: z.string(),
       title: z.string().nullable().optional(),
       meetLink: z.string().nullable().optional(),
+      contactEmail: z.string().nullable().optional(),
+      odooPartnerId: z.number().nullable().optional(),
     }),
   ),
   blocks: z.array(
@@ -66,5 +68,18 @@ export const CreateAppointmentInput = z.object({
   contactPhone: z.string().max(40).optional(),
   title: z.string().max(120).optional(),
   online: z.boolean().optional(),
+  contactEmail: z.string().email().max(160).optional(),
+  odooPartnerId: z.number().int().optional(),
+  invite: z.boolean().optional(),
 });
 export type CreateAppointmentInput = z.infer<typeof CreateAppointmentInput>;
+
+/** Sugestão de contato do Odoo (autocomplete da /agenda). */
+export const ContactSuggestion = z.object({
+  id: z.number(),
+  name: z.string(),
+  phone: z.string().nullable().optional(),
+  email: z.string().nullable().optional(),
+});
+export type ContactSuggestion = z.infer<typeof ContactSuggestion>;
+export const ContactSearchResult = z.object({ results: z.array(ContactSuggestion) });
