@@ -128,7 +128,7 @@ test("cria agendamento pela grade e ve o card", async ({ page }) => {
   await expect(page.getByRole("form", { name: "Novo agendamento" })).toBeVisible();
 
   // Preenche os campos (start ja vem preenchido pelo clique na grade)
-  await page.getByLabel(/cliente/i).fill("Ana");
+  await page.locator("#appt-contact").fill("Ana");
   await page.locator("#appt-title").fill("corte");
 
   // Submete
@@ -316,7 +316,7 @@ test("agendar vinculando contato Odoo + online + convite", async ({ page }) => {
   await expect(page.getByRole("form", { name: "Novo agendamento" })).toBeVisible();
 
   // Digita o nome do cliente para acionar a busca de contatos Odoo
-  await page.getByLabel(/cliente/i).fill("Ana");
+  await page.locator("#appt-contact").fill("Ana");
 
   // Escolhe a sugestao retornada pela API de contatos
   await page.getByText("Ana Silva").click();
