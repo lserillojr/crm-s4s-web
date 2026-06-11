@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useAgenda, useCreateBlock, useDeleteBlock, useCancelAppointment, useRescheduleAppointment } from "@/lib/agenda/use-agenda";
+import { useAgenda, useCreateBlock, useDeleteBlock, useCancelAppointment, useRescheduleAppointment, useCreateAppointment } from "@/lib/agenda/use-agenda";
 import type { AgendaList } from "@/lib/agenda/contract";
 import { BlockInput, RescheduleInput } from "@/lib/agenda/contract";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { BlockForm } from "./block-form";
+import { AppointmentForm, type AppointmentDraft } from "./appointment-form";
 
 /** Janela fixa: próximos 30 dias a partir de hoje (visual simples; calendário
  * rico fica para a Onda 2). 30 dias — e não 7 — para não cortar compromissos
@@ -46,7 +47,7 @@ function agruparPorDia(data: AgendaList): Grupo[] {
         id: a.id,
         start: a.start,
         end: a.end,
-        title: a.contactName ?? "Cliente",
+        title: a.title ? `${a.contactName ?? "Cliente"} — ${a.title}` : (a.contactName ?? "Cliente"),
         status: a.status,
       }),
     ),
@@ -175,9 +176,11 @@ export function AgendaClient() {
   const deleteBlock = useDeleteBlock();
   const cancelAppt = useCancelAppointment();
   const rescheduleAppt = useRescheduleAppointment();
+  const createAppt = useCreateAppointment();
 
   // UI state
   const [showBlockForm, setShowBlockForm] = useState(false);
+  const [showApptForm, setShowApptForm] = useState(false);
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
 
   const handleCreateBlock = (input: BlockInput) => {
@@ -186,11 +189,35 @@ export function AgendaClient() {
     });
   };
 
+  const handleCreateAppt = (draft: AppointmentDraft) => {
+    createAppt.mutate(
+      {
+        startIso: draft.startIso,
+        durationMin: draft.durationMin,
+        contactName: draft.contactName,
+        contactPhone: draft.contactPhone,
+        title: draft.title,
+      },
+      { onSuccess: () => setShowApptForm(false) },
+    );
+  };
+  const apptConflict = createAppt.isError && (createAppt.error as Error)?.message === "conflict";
+
   return (
     <div className="space-y-6">
       {/* ---- Barra de ações globais ---- */}
       <div className="flex items-center justify-between gap-3">
-        {!showBlockForm && (
+        {!showApptForm && !showBlockForm && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => { setShowApptForm(true); createAppt.reset(); }}
+            className="bg-s4s-blue hover:bg-s4s-blue/90"
+          >
+            + Novo agendamento
+          </Button>
+        )}
+        {!showApptForm && !showBlockForm && (
           <Button
             type="button"
             size="sm"
@@ -201,6 +228,19 @@ export function AgendaClient() {
           </Button>
         )}
       </div>
+
+      {/* ---- Formulário de novo agendamento ---- */}
+      {showApptForm && (
+        <AppointmentForm
+          isPending={createAppt.isPending}
+          isError={createAppt.isError}
+          isConflict={apptConflict}
+          defaultStart={(() => { const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0); const pad = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:00`; })()}
+          defaultDurationMin={60}
+          onSubmit={handleCreateAppt}
+          onCancel={() => { setShowApptForm(false); createAppt.reset(); }}
+        />
+      )}
 
       {/* ---- Formulário de novo bloqueio ---- */}
       {showBlockForm && (

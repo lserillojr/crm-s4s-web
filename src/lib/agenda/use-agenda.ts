@@ -1,6 +1,6 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { agendaItemSchema, type AgendaList, type BlockInput, type RescheduleInput } from "@/lib/agenda/contract";
+import { agendaItemSchema, type AgendaList, type BlockInput, type RescheduleInput, type CreateAppointmentInput } from "@/lib/agenda/contract";
 
 /**
  * Hook da tela /agenda. Busca os agendamentos/bloqueios do período [from, to)
@@ -71,6 +71,27 @@ export function useCancelAppointment() {
         method: "POST",
       });
       if (!res.ok) throw new Error(`cancel appointment ${res.status}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["agenda-list"] });
+    },
+  });
+}
+
+/** Cria um agendamento manual. Invalida a query agenda-list após sucesso.
+ *  Lança Error com message "conflict" quando o horário está ocupado (409). */
+export function useCreateAppointment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateAppointmentInput) => {
+      const res = await fetch("/api/agenda/appointments", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (res.status === 409) throw new Error("conflict");
+      if (!res.ok) throw new Error(`create appointment ${res.status}`);
       return res.json();
     },
     onSuccess: () => {

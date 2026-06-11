@@ -48,6 +48,7 @@ let mockCreateBlock: typeof mutationIdle;
 let mockDeleteBlock: typeof mutationIdle;
 let mockCancelAppt: typeof mutationIdle;
 let mockRescheduleAppt: typeof mutationIdle;
+let mockCreateAppt: typeof mutationIdle & { error: Error | null };
 
 vi.mock("@/lib/agenda/use-agenda", () => ({
   useAgenda: () => mockUseAgendaReturn,
@@ -55,6 +56,7 @@ vi.mock("@/lib/agenda/use-agenda", () => ({
   useDeleteBlock: () => mockDeleteBlock,
   useCancelAppointment: () => mockCancelAppt,
   useRescheduleAppointment: () => mockRescheduleAppt,
+  useCreateAppointment: () => mockCreateAppt,
 }));
 
 beforeEach(() => {
@@ -63,6 +65,7 @@ beforeEach(() => {
   mockDeleteBlock = { mutate: vi.fn(), isPending: false, isError: false, reset: vi.fn() };
   mockCancelAppt = { mutate: vi.fn(), isPending: false, isError: false, reset: vi.fn() };
   mockRescheduleAppt = { mutate: vi.fn(), isPending: false, isError: false, reset: vi.fn() };
+  mockCreateAppt = { mutate: vi.fn(), isPending: false, isError: false, reset: vi.fn(), error: null };
 });
 
 // ---------------------------------------------------------------------------
