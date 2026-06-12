@@ -13,7 +13,7 @@ export const KB_CATALOG = [
   { key: "escalacao", title: "Quando escalar para um humano", editable: false },
   { key: "diretrizes", title: "Diretrizes gerais", editable: false },
   { key: "anti_loop", title: "Regras anti-loop e proteções", editable: false },
-  { key: "regras_odoo", title: "Regras Odoo (movimentação do pipeline)", editable: false },
+  { key: "regras_odoo", title: "Regras do funil (movimentação do pipeline)", editable: false },
 ] as const;
 
 export const EDITABLE_KEYS = KB_CATALOG.filter((s) => s.editable).map((s) => s.key);
