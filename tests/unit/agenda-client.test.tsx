@@ -183,7 +183,8 @@ describe("AgendaClient (grade)", () => {
     render(<AgendaClient />);
     fireEvent.click(screen.getByText("Ana Cliente"));
     fireEvent.click(screen.getByRole("button", { name: /^reagendar$/i }));
-    fireEvent.change(screen.getByLabelText(/nova data e hora/i), { target: { value: "2026-06-15T10:00" } });
+    fireEvent.change(screen.getByLabelText(/nova data e hora/i), { target: { value: "2026-06-15" } });
+    fireEvent.change(screen.getByLabelText(/horário/i), { target: { value: "10:00" } });
     fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
     expect(mockRescheduleAppt.mutate).toHaveBeenCalledWith(
       expect.objectContaining({ id: "a1", newSlotIso: expect.stringContaining("2026-06-15") }),

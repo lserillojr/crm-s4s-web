@@ -2,9 +2,10 @@
 import { useState } from "react";
 import type { GridItem } from "./calendar-grid";
 import { ContactPopover } from "./contact-popover";
+import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DateTimePicker } from "@/components/agenda/datetime-picker";
 import { localInputToIso, toLocalInput } from "@/lib/agenda/datetime";
 
 interface Props {
@@ -35,7 +36,7 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
   const hasContact = item.kind === "appt" && !!item.odooPartnerId;
 
   return (
-    <aside className="space-y-3 rounded-md border bg-white p-4" aria-label={`Detalhes de ${item.label}`}>
+    <Modal onClose={onClose} ariaLabel={`Detalhes de ${item.label}`} widthClass="max-w-md">
       <div className="flex items-start justify-between">
         <div>
           {hasContact ? (
@@ -86,8 +87,7 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
       {item.kind === "appt" && rescheduling && (
         <div className="space-y-2 rounded-md border bg-white p-3">
           <Label htmlFor={`reschedule-${item.id}`}>Nova data e hora</Label>
-          <Input id={`reschedule-${item.id}`} type="datetime-local" value={slot}
-            onChange={(e) => setSlot(e.target.value)} disabled={isPending} />
+          <DateTimePicker id={`reschedule-${item.id}`} value={slot} onChange={setSlot} disabled={isPending} />
           <div className="flex justify-end gap-2">
             <Button type="button" size="sm" variant="ghost" disabled={isPending}
               onClick={() => setRescheduling(false)}>Cancelar</Button>
@@ -114,6 +114,6 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
           onClose={() => setContactOpen(false)}
         />
       )}
-    </aside>
+    </Modal>
   );
 }

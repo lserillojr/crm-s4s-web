@@ -159,7 +159,7 @@ test("card criado abre o painel com acoes Reagendar e Cancelar", async ({ page }
   await page.getByText(CARD_LABEL).click();
 
   // Painel deve aparecer (aria-label="Detalhes de <label>")
-  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  const panel = page.getByRole("dialog", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
   await expect(panel).toBeVisible();
 
   // Acoes disponiveis para compromisso nao-cancelado
@@ -170,8 +170,8 @@ test("card criado abre o painel com acoes Reagendar e Cancelar", async ({ page }
 
 // ---------------------------------------------------------------------------
 
-test("reagendar pela grade usa date-picker inline", async ({ page }) => {
-  // Fluxo: abre painel -> clica "Reagendar" -> preenche datetime-local inline ->
+test("reagendar pela grade usa date-picker (data + horario)", async ({ page }) => {
+  // Fluxo: abre painel -> clica "Reagendar" -> escolhe data + horario ->
   // clica "Confirmar" -> API POST reschedule e chamada com newSlotIso.
   // O window.prompt NAO e mais usado; o reschedule e feito pelo AppointmentPanel.
   let rescheduleBody: unknown = null;
@@ -198,19 +198,21 @@ test("reagendar pela grade usa date-picker inline", async ({ page }) => {
 
   // Abre o painel
   await page.getByText(CARD_LABEL).click();
-  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  const panel = page.getByRole("dialog", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
   await expect(panel).toBeVisible();
 
   // Clica "Reagendar" -> expoe o inline date-picker (sem window.prompt)
   await panel.getByRole("button", { name: /^Reagendar$/i }).click();
 
-  // Preenche o campo datetime-local com um novo slot (um dia depois do slot atual)
+  // Escolhe data + horario num novo slot (um dia depois do slot atual, 13:00)
   const slot = apptSlot();
   const next = addDays(slot.start, 1);
   const pad = (n: number) => String(n).padStart(2, "0");
-  const newSlotLocal = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}T${pad(next.getHours())}:${pad(next.getMinutes())}`;
+  const newDate = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+  const newTime = `${pad(next.getHours())}:${pad(next.getMinutes())}`;
 
-  await page.getByLabel(/nova data e hora/i).fill(newSlotLocal);
+  await page.getByLabel(/nova data e hora/i).fill(newDate);
+  await page.getByLabel(/^hor[aá]rio$/i).selectOption(newTime);
 
   // Clica "Confirmar" -> dispara o POST reschedule
   await page.getByRole("button", { name: /^Confirmar$/i }).click();
@@ -253,7 +255,7 @@ test("cancelar chama a API de cancel e o painel fecha", async ({ page }) => {
 
   // Abre o painel
   await page.getByText(CARD_LABEL).click();
-  const panel = page.getByRole("complementary", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
+  const panel = page.getByRole("dialog", { name: new RegExp(`Detalhes de ${CARD_LABEL}`, "i") });
   await expect(panel).toBeVisible();
 
   // Clica "Cancelar"
