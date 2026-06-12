@@ -17,18 +17,21 @@ function renderPanel(item: GridItem, onReschedule = vi.fn()) {
 }
 
 describe("AppointmentPanel — reagendar inline", () => {
-  it("clicar Reagendar mostra um datetime-local pré-preenchido", () => {
+  it("clicar Reagendar mostra data + hora pré-preenchidas", () => {
     renderPanel(appt);
     fireEvent.click(screen.getByRole("button", { name: /^reagendar$/i }));
-    const input = screen.getByLabelText(/nova data e hora/i) as HTMLInputElement;
-    expect(input).toBeInTheDocument();
-    expect(input.value).toBe("2026-09-10T13:00");
+    const date = screen.getByLabelText(/nova data e hora/i) as HTMLInputElement;
+    const time = screen.getByLabelText(/horário/i) as HTMLSelectElement;
+    expect(date).toBeInTheDocument();
+    expect(date.value).toBe("2026-09-10");
+    expect(time.value).toBe("13:00");
   });
 
   it("Confirmar chama onReschedule com ISO com offset", () => {
     const { onReschedule } = renderPanel(appt);
     fireEvent.click(screen.getByRole("button", { name: /^reagendar$/i }));
-    fireEvent.change(screen.getByLabelText(/nova data e hora/i), { target: { value: "2026-09-11T10:30" } });
+    fireEvent.change(screen.getByLabelText(/nova data e hora/i), { target: { value: "2026-09-11" } });
+    fireEvent.change(screen.getByLabelText(/horário/i), { target: { value: "10:30" } });
     fireEvent.click(screen.getByRole("button", { name: /^confirmar$/i }));
     expect(onReschedule).toHaveBeenCalledTimes(1);
     expect(onReschedule.mock.calls[0]![0]).toMatchObject({ id: "a1" });
