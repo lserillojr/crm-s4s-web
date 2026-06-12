@@ -11,7 +11,9 @@ export interface GridItem {
   source: "ia" | "manual" | "block";
   status: string;
   meetLink?: string | null;
+  contactName?: string | null;
   contactEmail?: string | null;
+  contactPhone?: string | null;
   odooPartnerId?: number | null;
 }
 

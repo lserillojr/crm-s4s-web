@@ -19,6 +19,7 @@ export const agendaItemSchema = z.object({
       title: z.string().nullable().optional(),
       meetLink: z.string().nullable().optional(),
       contactEmail: z.string().nullable().optional(),
+      contactPhone: z.string().nullable().optional(),
       odooPartnerId: z.number().nullable().optional(),
     }),
   ),

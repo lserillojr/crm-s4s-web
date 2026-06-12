@@ -91,7 +91,7 @@ export function WorkingHoursClient() {
           className="rounded-md border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900"
         >
           Não consegui carregar seu horário agora — mostrando o padrão. Você
-          pode ajustar e salvar; vou sincronizar com o WhatsApp/Chatwoot.
+          pode ajustar e salvar; vou sincronizar com o WhatsApp.
         </div>
       )}
 

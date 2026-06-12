@@ -52,11 +52,32 @@ describe("AppointmentPanel — link do Meet", () => {
   });
 });
 
-describe("AppointmentPanel — vínculo Odoo", () => {
-  it("mostra selo 'vinculado' + e-mail quando contactEmail/odooPartnerId", () => {
-    render(<AppointmentPanel item={{ ...appt, contactEmail: "a@x.com", odooPartnerId: 7 }} isPending={false}
-      onClose={() => {}} onReschedule={() => {}} onCancel={() => {}} onDeleteBlock={() => {}} />);
-    expect(screen.getByText(/vinculado ao odoo/i)).toBeInTheDocument();
-    expect(screen.getByText(/a@x\.com/)).toBeInTheDocument();
+describe("AppointmentPanel — contato vinculado (popup)", () => {
+  const linked: GridItem = {
+    ...appt, contactName: "Ana", contactEmail: "a@x.com", contactPhone: "11999", odooPartnerId: 7,
+  };
+
+  it("NÃO menciona 'Odoo' no painel (regra de produto)", () => {
+    renderPanel(linked);
+    expect(screen.queryByText(/odoo/i)).not.toBeInTheDocument();
+  });
+
+  it("mostra o e-mail como link; clicar abre o popup com telefone e ficha", () => {
+    renderPanel(linked);
+    fireEvent.click(screen.getByRole("button", { name: /a@x\.com/ }));
+    expect(screen.getByRole("dialog", { name: /dados do contato/i })).toBeInTheDocument();
+    expect(screen.getByText("11999")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /abrir ficha do contato/i })).toBeInTheDocument();
+  });
+
+  it("clicar no nome também abre o popup", () => {
+    renderPanel(linked);
+    fireEvent.click(screen.getByRole("button", { name: /ana — corte/i }));
+    expect(screen.getByRole("dialog", { name: /dados do contato/i })).toBeInTheDocument();
+  });
+
+  it("sem odooPartnerId, o nome não é clicável (sem popup)", () => {
+    renderPanel(appt);
+    expect(screen.queryByRole("button", { name: /ana — corte/i })).not.toBeInTheDocument();
   });
 });

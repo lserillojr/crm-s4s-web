@@ -28,7 +28,9 @@ function toGridItems(data: AgendaList): GridItem[] {
     label: a.title ? `${a.contactName ?? "Cliente"} — ${a.title}` : (a.contactName ?? "Cliente"),
     source: a.source === "ia" ? "ia" : "manual", status: a.status,
     meetLink: a.meetLink ?? null,
+    contactName: a.contactName ?? null,
     contactEmail: a.contactEmail ?? null,
+    contactPhone: a.contactPhone ?? null,
     odooPartnerId: a.odooPartnerId ?? null,
   }));
   const blocks: GridItem[] = data.blocks.map((b) => ({

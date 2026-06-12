@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { GridItem } from "./calendar-grid";
+import { ContactPopover } from "./contact-popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ const fmt = (d: Date) =>
 export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCancel, onDeleteBlock }: Props) {
   const [rescheduling, setRescheduling] = useState(false);
   const [slot, setSlot] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
 
   const openReschedule = () => { setSlot(toLocalInput(item.start)); setRescheduling(true); };
   const confirmReschedule = () => {
@@ -30,12 +32,20 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
   };
 
   const copyMeet = () => { if (item.meetLink) void navigator.clipboard.writeText(item.meetLink); };
+  const hasContact = item.kind === "appt" && !!item.odooPartnerId;
 
   return (
     <aside className="space-y-3 rounded-md border bg-white p-4" aria-label={`Detalhes de ${item.label}`}>
       <div className="flex items-start justify-between">
         <div>
-          <h3 className="text-sm font-semibold">{item.label}</h3>
+          {hasContact ? (
+            <button type="button" onClick={() => setContactOpen(true)}
+              className="text-left text-sm font-semibold text-s4s-blue underline-offset-2 hover:underline">
+              {item.label}
+            </button>
+          ) : (
+            <h3 className="text-sm font-semibold">{item.label}</h3>
+          )}
           <p className="text-xs text-muted-foreground capitalize">{fmt(item.start)} – {item.end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
           {item.kind === "appt" && (
             <span className="mt-1 inline-block rounded bg-s4s-gray-light px-2 py-0.5 text-xs text-muted-foreground">
@@ -54,11 +64,12 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
         </div>
       )}
 
-      {item.kind === "appt" && item.odooPartnerId && (
-        <div className="flex items-center gap-2 rounded-md bg-s4s-gray-light px-3 py-2 text-xs text-muted-foreground">
-          <span className="font-medium">Vinculado ao Odoo</span>
-          {item.contactEmail && <span>· {item.contactEmail}</span>}
-        </div>
+      {hasContact && item.contactEmail && (
+        <button type="button" onClick={() => setContactOpen(true)}
+          className="flex items-center gap-2 text-xs text-s4s-blue underline-offset-2 hover:underline">
+          <span aria-hidden="true">✉</span>
+          {item.contactEmail}
+        </button>
       )}
 
       {item.kind === "appt" && item.status !== "cancelado" && !rescheduling && (
@@ -93,6 +104,15 @@ export function AppointmentPanel({ item, isPending, onClose, onReschedule, onCan
           onClick={() => onDeleteBlock(item.id)} className="text-muted-foreground hover:text-destructive">
           {isPending ? "Removendo…" : "Remover bloqueio"}
         </Button>
+      )}
+
+      {contactOpen && (
+        <ContactPopover
+          name={item.contactName ?? null}
+          email={item.contactEmail ?? null}
+          phone={item.contactPhone ?? null}
+          onClose={() => setContactOpen(false)}
+        />
       )}
     </aside>
   );
