@@ -1,5 +1,5 @@
 import { callAiService } from "@/lib/api/ai-service";
-import { funilGetResponseSchema } from "@/lib/funil/schema";
+import { funilGetResponseSchema, type FunilGetResponse } from "@/lib/funil/schema";
 
 const GET_PATH = "/funil-config/api/v1/get";
 
@@ -10,7 +10,7 @@ const GET_PATH = "/funil-config/api/v1/get";
  * primeiro vence. Não lança: o caller (compose do KB) deve degradar.
  */
 export async function fetchRoleToName(tenantId: string): Promise<Record<string, string>> {
-  const result = await callAiService<unknown>({ path: GET_PATH, body: { tenant_id: tenantId } });
+  const result = await callAiService<FunilGetResponse>({ path: GET_PATH, body: { tenant_id: tenantId } });
   if (!result.ok) {
     console.warn("[kb] funil-config indisponível p/ resolver etapas", {
       tenantId,
@@ -19,7 +19,10 @@ export async function fetchRoleToName(tenantId: string): Promise<Record<string, 
     return {};
   }
   const parsed = funilGetResponseSchema.safeParse(result.data);
-  if (!parsed.success) return {};
+  if (!parsed.success) {
+    console.warn("[kb] funil-config shape inesperada p/ resolver etapas", { tenantId });
+    return {};
+  }
   const map: Record<string, string> = {};
   for (const s of parsed.data.stages) {
     if (s.s4s_role && !(s.s4s_role in map)) map[s.s4s_role] = s.name;
