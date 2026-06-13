@@ -109,11 +109,15 @@ describe("PUT /api/funil-config", () => {
 
   it("200: repassa tenant_id + renames ao WF", async () => {
     authMock.mockResolvedValue(VALID_SESSION);
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), {
-        status: 200,
-      }),
-    );
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // 0) funil-config save (rename)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), {
+          status: 200,
+        }),
+      )
+      // recompose: kb get sem KB materializado → para aqui (sections null)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sections: null, vertical: "outro", legacyContent: "" }), { status: 200 }));
     const { PUT } = await loadRoute();
     const res = await PUT(putReq({ renames: [{ role: "orcamento", name: "Proposta" }] }) as never);
     const body = await res.json();
@@ -175,6 +179,7 @@ describe("PUT /api/funil-config", () => {
     const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
     expect(String(calls[0]![0])).toContain("/funil-config/api/v1/save");
     expect(String(calls[1]![0])).toContain("/kb/api/v1/get");
+    expect(String(calls[2]![0])).toContain("/funil-config/api/v1/get");
     expect(String(calls[3]![0])).toContain("/kb/api/v1/save");
     const savedKb = JSON.parse((calls[3]![1] as { body: string }).body);
     expect(savedKb.content).toContain("p/ Proposta");
