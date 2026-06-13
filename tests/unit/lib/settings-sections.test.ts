@@ -6,6 +6,7 @@ describe("SETTINGS_SECTIONS", () => {
     expect(SETTINGS_SECTIONS.map((s) => s.href)).toEqual([
       "/settings/integracoes",
       "/settings/kb",
+      "/settings/catalogo",
       "/settings/working-hours",
       "/settings/acompanhamento",
     ]);
