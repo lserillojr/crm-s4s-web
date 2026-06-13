@@ -1,4 +1,4 @@
-import { Plug, BookOpen, Clock, BellRing, type LucideIcon } from "lucide-react";
+import { Plug, BookOpen, Package, Clock, BellRing, type LucideIcon } from "lucide-react";
 
 export interface SettingsSection {
   href: string;
@@ -26,6 +26,13 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description:
       "O que sua IA sabe sobre o seu negócio para responder os clientes.",
     icon: BookOpen,
+  },
+  {
+    href: "/settings/catalogo",
+    label: "Catálogo de Produtos",
+    description:
+      "Estruture seus produtos para a IA oferecer aos clientes.",
+    icon: Package,
   },
   {
     href: "/settings/working-hours",
