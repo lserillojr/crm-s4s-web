@@ -41,4 +41,43 @@ describe("GET /api/app/conversations", () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error).toBe("upstream");
   });
+
+  it("filter=todas devolve todas as abertas (handoff e não-handoff)", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockResolvedValue({
+      listOpenConversations: async () => [
+        { id: 1, status: "open", custom_attributes: { ai_state: "escalated" } },     // assumida
+        { id: 2, status: "open", custom_attributes: { handoff_status: "aberto" } },  // precisa
+        { id: 3, status: "open", custom_attributes: { ai_state: "active" } },         // ia
+      ],
+    });
+    const res = await GET(new Request("http://x/api/app/conversations?filter=todas"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.map((c: { selo: string }) => c.selo).sort()).toEqual(["assumida", "ia", "precisa"]);
+  });
+
+  it("sem filter (default) devolve só needs_you (handoff)", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockResolvedValue({
+      listOpenConversations: async () => [
+        { id: 1, status: "open", custom_attributes: { ai_state: "escalated" } },
+        { id: 3, status: "open", custom_attributes: { ai_state: "active" } },
+      ],
+    });
+    const res = await GET(new Request("http://x/api/app/conversations"));
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0].id).toBe(1);
+  });
+
+  it("502 não vaza detail no corpo", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockRejectedValue(new Error("connection refused 10.0.0.5:5432 senha=xyz"));
+    const res = await GET(new Request("http://x/api/app/conversations"));
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toBe("upstream");
+    expect(body.detail).toBeUndefined();
+  });
 });
