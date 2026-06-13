@@ -4,6 +4,7 @@ import { callAiService } from "@/lib/api/ai-service";
 import { funilGetResponseSchema, renamePayloadSchema } from "@/lib/funil/schema";
 import type { FunilStageRow } from "@/lib/funil/schema";
 import { meaningForRole, ROLE_ORDER } from "@/lib/funil/roles";
+import { recomposeAndSaveKb } from "@/lib/kb/recompose";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,6 +96,10 @@ export async function PUT(req: NextRequest) {
       { status: 502, headers: NO_STORE },
     );
   }
+
+  // Best-effort: re-sincroniza o KB (Seção 8 por papel) com os novos labels. O rename já
+  // gravou no Odoo; se o recompose falhar, loga e segue — não derruba o rename. (Story 2C)
+  await recomposeAndSaveKb(ctx.tenantId);
 
   return Response.json(result.data, { status: 200, headers: NO_STORE });
 }
