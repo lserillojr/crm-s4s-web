@@ -728,6 +728,170 @@ describe("CatalogoClient", () => {
     });
   });
 
+  it("publicar draft falha com 409 → exibe mensagem de nome duplicado e draft permanece", async () => {
+    const mockFetch = vi.fn();
+    // GET inicial
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    // POST ingest
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    // POST create (publicar) → 409 conflito de chave
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "key_already_exists" }), { status: 409 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("publicar-draft-0")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("publicar-draft-0"));
+
+    // Mensagem de nome duplicado deve aparecer no card do draft 0
+    await waitFor(() =>
+      expect(screen.getByTestId("draft-publish-error-0")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("draft-publish-error-0").textContent).toMatch(
+      /Já existe um produto com esse nome/,
+    );
+
+    // O draft deve continuar presente (não foi removido)
+    expect(screen.getByTestId("draft-0")).toBeInTheDocument();
+  });
+
+  it("publicar draft com texto colado envia source='texto' para POST /api/catalogo", async () => {
+    const mockFetch = vi.fn();
+    // GET inicial
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    // POST ingest (texto)
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    // POST create (publicar)
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          product: {
+            id: "p-new",
+            key: "corte-feminino",
+            title: "Corte Feminino",
+            description: "Corte e escova",
+            priceBrl: 80,
+            category: "Cabelo",
+            attributes: { duracao: "60min" },
+            source: "texto",
+            isActive: true,
+            sortOrder: 0,
+          },
+        }),
+        { status: 201 },
+      ),
+    );
+    // GET refetch
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+    // Usa texto colado (não arquivo) → source deve ser "texto"
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "Corte Feminino 80" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("publicar-draft-0")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("publicar-draft-0"));
+
+    await waitFor(() => {
+      const postCall = mockFetch.mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo" &&
+          c[1]?.method === "POST",
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(postCall![1].body as string);
+      expect(body.source).toBe("texto");
+    });
+  });
+
+  it("adicionar produto manual não envia source (servidor usa 'manual' por defeito)", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    const newProduct: CatalogProduct = {
+      id: "prod-manual",
+      key: "escova",
+      title: "Escova",
+      description: null,
+      priceBrl: 50,
+      category: null,
+      attributes: {},
+      source: "manual",
+      isActive: false,
+      sortOrder: 0,
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ product: newProduct }), { status: 201 }),
+    );
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [newProduct] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("adicionar-produto"));
+    fireEvent.change(screen.getByTestId("add-campo-titulo"), {
+      target: { value: "Escova" },
+    });
+    fireEvent.change(screen.getByTestId("add-campo-preco"), {
+      target: { value: "50" },
+    });
+    fireEvent.click(screen.getByTestId("add-salvar"));
+
+    await waitFor(() => {
+      const postCall = mockFetch.mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo" &&
+          c[1]?.method === "POST",
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(postCall![1].body as string);
+      // Adição manual não deve enviar source (servidor usa 'manual' por defeito)
+      expect(body.source).toBeUndefined();
+    });
+  });
+
   it("editar o preço de um draft sem preço antes de publicar persiste o valor corrigido", async () => {
     const mockFetch = vi.fn();
     mockFetch.mockResolvedValueOnce(

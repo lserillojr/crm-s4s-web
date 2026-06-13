@@ -185,23 +185,49 @@ describe("POST /api/catalogo", () => {
     expect(params).not.toContain(true);
   });
 
-  it("201 sortOrder=5 passa 5 no $9 dos params SQL", async () => {
+  it("201 sortOrder=5 passa 5 no $10 dos params SQL", async () => {
     vi.mocked(auth).mockResolvedValue(SESSION as never);
     poolQuery.mockResolvedValue({ rows: [{ ...PRODUCT_ROW, sort_order: 5 }], rowCount: 1 });
     const res = await POST(postReq({ ...validDraft, sortOrder: 5 }) as never);
     expect(res.status).toBe(201);
     const [, params] = poolQuery.mock.calls[0]!;
-    // params: [tenantId, key, title, description, priceBrl, category, attributes, isActive, sortOrder]
-    expect(params[8]).toBe(5);
+    // params: [tenantId, key, title, description, priceBrl, category, attributes, source, isActive, sortOrder]
+    expect(params[9]).toBe(5);
   });
 
-  it("201 sem sortOrder usa 0 por defeito no $9 dos params SQL", async () => {
+  it("201 sem sortOrder usa 0 por defeito no $10 dos params SQL", async () => {
     vi.mocked(auth).mockResolvedValue(SESSION as never);
     poolQuery.mockResolvedValue({ rows: [PRODUCT_ROW], rowCount: 1 });
     const res = await POST(postReq(validDraft) as never);
     expect(res.status).toBe(201);
     const [, params] = poolQuery.mock.calls[0]!;
-    expect(params[8]).toBe(0);
+    expect(params[9]).toBe(0);
+  });
+
+  it("201 source='texto' persiste 'texto' no $8 dos params SQL (proveniência ingestão)", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    poolQuery.mockResolvedValue({ rows: [{ ...PRODUCT_ROW, source: "texto" }], rowCount: 1 });
+    const res = await POST(postReq({ ...validDraft, source: "texto" }) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    // params[7] = source ($8 no SQL — tenantId é $1)
+    expect(params[7]).toBe("texto");
+  });
+
+  it("201 sem source usa 'manual' por defeito no $8 dos params SQL", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    poolQuery.mockResolvedValue({ rows: [PRODUCT_ROW], rowCount: 1 });
+    const res = await POST(postReq(validDraft) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    expect(params[7]).toBe("manual");
+  });
+
+  it("400 source inválido é rejeitado pelo schema", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    const res = await POST(postReq({ ...validDraft, source: "evil-source" }) as never);
+    expect(res.status).toBe(400);
+    expect(poolQuery).not.toHaveBeenCalled();
   });
 });
 

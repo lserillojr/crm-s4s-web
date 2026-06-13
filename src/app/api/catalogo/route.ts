@@ -36,6 +36,9 @@ export async function GET(_req: Request) {
 // ─────────────────────────────────────────────
 // POST /api/catalogo — create a new product
 // ─────────────────────────────────────────────
+const ALLOWED_SOURCES = ["manual", "texto", "planilha", "pdf"] as const;
+type AllowedSource = (typeof ALLOWED_SOURCES)[number];
+
 const createSchema = z.object({
   key: z.string().min(1).max(120),
   title: z.string().min(1).max(255),
@@ -45,6 +48,7 @@ const createSchema = z.object({
   attributes: z.record(z.string(), z.unknown()).optional().default({}),
   isActive: z.boolean().optional().default(false),
   sortOrder: z.number().int().optional(),
+  source: z.enum(ALLOWED_SOURCES).optional().default("manual"),
 });
 
 export async function POST(req: Request) {
@@ -78,6 +82,7 @@ export async function POST(req: Request) {
     attributes = {},
     isActive = false,
     sortOrder = 0,
+    source = "manual" as AllowedSource,
   } = parsed.data;
 
   const pool = getPool();
@@ -85,10 +90,10 @@ export async function POST(req: Request) {
     const { rows } = await pool.query(
       `INSERT INTO tenant_product_catalog
          (tenant_id, key, title, description, price_brl, category, attributes, source, is_active, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, tenant_id, key, title, description, price_brl, category,
                  attributes, source, is_active, sort_order, created_at, updated_at`,
-      [ctx.tenantId, key, title, description, priceBrl, category, JSON.stringify(attributes), isActive, sortOrder],
+      [ctx.tenantId, key, title, description, priceBrl, category, JSON.stringify(attributes), source, isActive, sortOrder],
     );
 
     return Response.json(

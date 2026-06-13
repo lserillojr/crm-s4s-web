@@ -17,6 +17,9 @@ async function fetchCatalogo(): Promise<{ products: CatalogProduct[] }> {
   return r.json();
 }
 
+// Valores permitidos para o campo source (espelha createSchema no servidor)
+type ProductSource = "manual" | "texto" | "planilha" | "pdf";
+
 async function createProduct(data: {
   key: string;
   title: string;
@@ -24,6 +27,7 @@ async function createProduct(data: {
   priceBrl: number | null;
   category: string | null;
   attributes: Record<string, unknown>;
+  source?: ProductSource;
 }): Promise<{ product: CatalogProduct }> {
   const r = await fetch("/api/catalogo", {
     method: "POST",
@@ -201,11 +205,15 @@ export function CatalogoClient() {
   const [importOpen, setImportOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [importFile, setImportFile] = useState<File | null>(null);
+  // fonte de proveniência da sessão de ingestão atual (texto | planilha | pdf)
+  const [importSource, setImportSource] = useState<ProductSource>("texto");
   const [warnings, setWarnings] = useState<string[]>([]);
   // drafts === null → ainda não analisou; [] → analisou e nada veio
   const [drafts, setDrafts] = useState<DraftState[] | null>(null);
   // índice do draft sendo publicado (p/ desabilitar o botão)
   const [pendingDraftIdx, setPendingDraftIdx] = useState<number | null>(null);
+  // índice do draft cujo publish falhou (p/ exibir erro inline no card)
+  const [failedDraftIdx, setFailedDraftIdx] = useState<number | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof createProduct>[0]) =>
@@ -256,6 +264,13 @@ export function CatalogoClient() {
     mutationFn: () =>
       importFile ? ingestFile(importFile) : ingestText(importText),
     onSuccess: (res) => {
+      // Deriva a fonte de proveniência: arquivo → planilha ou pdf; texto colado → texto
+      if (importFile) {
+        const lc = importFile.name.toLowerCase();
+        setImportSource(lc.endsWith(".pdf") ? "pdf" : "planilha");
+      } else {
+        setImportSource("texto");
+      }
       setWarnings(res.warnings ?? []);
       setDrafts((res.products ?? []).map(aiDraftToState));
     },
@@ -263,7 +278,7 @@ export function CatalogoClient() {
 
   // Publica UM draft revisado: vira um produto ativo via POST /api/catalogo.
   const publishDraftMutation = useMutation({
-    mutationFn: (data: Parameters<typeof createProduct>[0]) =>
+    mutationFn: ({ idx: _idx, data }: { idx: number; data: Parameters<typeof createProduct>[0] }) =>
       // POST /api/catalogo aceita isActive — o draft entra já publicado.
       fetch("/api/catalogo", {
         method: "POST",
@@ -276,6 +291,9 @@ export function CatalogoClient() {
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["catalogo"] });
+    },
+    onError: (_err, { idx }) => {
+      setFailedDraftIdx(idx);
     },
     onSettled: () => {
       setPendingDraftIdx(null);
@@ -365,8 +383,11 @@ export function CatalogoClient() {
     setImportOpen(false);
     setImportText("");
     setImportFile(null);
+    setImportSource("texto");
     setWarnings([]);
     setDrafts(null);
+    setPendingDraftIdx(null); // FIX 3: não vazar índice para a próxima sessão
+    setFailedDraftIdx(null);  // FIX 1: limpar erro de publish também
     ingestMutation.reset();
     publishDraftMutation.reset();
   }
@@ -399,15 +420,21 @@ export function CatalogoClient() {
       return;
     }
 
+    // Limpa erro anterior deste draft antes de tentar de novo
+    setFailedDraftIdx(null);
     setPendingDraftIdx(idx);
     publishDraftMutation.mutate(
       {
-        key: slugify(d.title),
-        title: d.title.trim(),
-        description: d.description.trim() || null,
-        priceBrl: parsePriceBrl(d.priceBrl),
-        category: d.category.trim() || null,
-        attributes: attrResult.value,
+        idx,
+        data: {
+          key: slugify(d.title),
+          title: d.title.trim(),
+          description: d.description.trim() || null,
+          priceBrl: parsePriceBrl(d.priceBrl),
+          category: d.category.trim() || null,
+          attributes: attrResult.value,
+          source: importSource,
+        },
       },
       {
         onSuccess: () => {
@@ -676,6 +703,19 @@ export function CatalogoClient() {
                             </p>
                           )}
                         </div>
+
+                        {failedDraftIdx === idx && (
+                          <div
+                            role="alert"
+                            data-testid={`draft-publish-error-${idx}`}
+                            className="rounded-md border border-red-300 bg-red-50 p-2 text-xs text-red-900"
+                          >
+                            {publishDraftMutation.error instanceof Error &&
+                            publishDraftMutation.error.message === "key_exists"
+                              ? "Já existe um produto com esse nome. Altere o nome e tente de novo."
+                              : "Não consegui publicar. Tente de novo."}
+                          </div>
+                        )}
 
                         <Button
                           data-testid={`publicar-draft-${idx}`}

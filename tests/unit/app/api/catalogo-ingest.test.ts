@@ -222,4 +222,26 @@ describe("POST /api/catalogo/ingest — upload de arquivo", () => {
     expect(res.status).toBe(401);
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  it("tenant_id da sessão sobrescreve tenant_id malicioso no form (isolamento arquivo)", async () => {
+    authMock.mockResolvedValue(SESSION);
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValue(aiResponse(AI_RESULT));
+    const { POST } = await loadRoute();
+
+    const file = new File(["nome;preco\nCorte;80"], "catalogo.csv", {
+      type: "text/csv",
+    });
+    // Passa tenant_id "evil-tenant" como campo extra no form — deve ser ignorado
+    const res = await POST(fileReq(file, { tenant_id: "evil-tenant" }) as never);
+    expect(res.status).toBe(200);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0]!;
+    const sentBody = (init as RequestInit).body as FormData;
+    expect(sentBody).toBeInstanceOf(FormData);
+    // O tenant_id enviado ao upstream deve ser o da sessão, nunca o do form
+    expect(sentBody.get("tenant_id")).toBe("t-1");
+    expect(sentBody.get("tenant_id")).not.toBe("evil-tenant");
+  });
 });
