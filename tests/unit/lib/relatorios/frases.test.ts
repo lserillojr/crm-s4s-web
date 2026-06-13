@@ -6,6 +6,7 @@ import {
   fraseOndeTrava,
   fraseForaHorario,
   frasePico,
+  fraseVendaFechada,
 } from "@/lib/relatorios/frases";
 
 describe("frases MEI", () => {
@@ -67,5 +68,18 @@ describe("frases MEI", () => {
     expect(frasePico(null)).toBe(
       "Ainda sem movimento suficiente pra apontar um padrão",
     );
+  });
+
+  it("venda fechada: contagem + faturamento formatado em R$ (milhar)", () => {
+    expect(fraseVendaFechada(3, 4480)).toBe("3 vendas fechadas — R$ 4.480 faturados");
+  });
+
+  it("venda fechada: singular quando 1", () => {
+    expect(fraseVendaFechada(1, 1990)).toBe("1 venda fechada — R$ 1.990 faturados");
+  });
+
+  it("venda fechada: sem faturamento mostra só a contagem", () => {
+    expect(fraseVendaFechada(2, null)).toBe("2 vendas fechadas");
+    expect(fraseVendaFechada(2, 0)).toBe("2 vendas fechadas");
   });
 });
