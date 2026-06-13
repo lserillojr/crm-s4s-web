@@ -6,6 +6,7 @@ vi.mock("@/lib/ai-service", () => ({ callAgendaService: vi.fn() }));
 import { requireAppUser } from "@/lib/api/require-app-user";
 import { callAgendaService } from "@/lib/ai-service";
 import { GET as listGET } from "@/app/api/app/agenda/list/route";
+import { POST as criarPOST } from "@/app/api/app/agenda/appointments/route";
 
 const reqUser = vi.mocked(requireAppUser);
 const callSvc = vi.mocked(callAgendaService);
@@ -78,5 +79,39 @@ describe("GET /api/app/agenda/list", () => {
     const body = await res.json();
     expect(body.error).toBe("upstream");
     expect(body.detail).toBeUndefined();
+  });
+});
+
+describe("POST /api/app/agenda/appointments", () => {
+  it("422 quando o corpo é inválido (sem inicioISO/duracaoMin)", async () => {
+    const res = await criarPOST(new Request("http://x/api/app/agenda/appointments", { method: "POST", body: JSON.stringify({ titulo: "x" }) }));
+    expect(res.status).toBe(422);
+    expect(callSvc).not.toHaveBeenCalled();
+  });
+
+  it("traduz o corpo limpo para o corpo canônico do FastAPI (contatoId→odoo_partner_id, online→Meet)", async () => {
+    callSvc.mockResolvedValue(upstream({ id: "novo", start: "2026-06-18T14:00:00-03:00", end: "2026-06-18T15:00:00-03:00", contactName: "Ana", title: "Corte", meetLink: "m", status: "confirmado", source: "manual" }, 200));
+    const res = await criarPOST(new Request("http://x/api/app/agenda/appointments", {
+      method: "POST",
+      body: JSON.stringify({ inicioISO: "2026-06-18T14:00:00-03:00", duracaoMin: 60, titulo: "Corte", contatoId: 7, online: true }),
+    }));
+    expect(res.status).toBe(200);
+    const [path, init] = callSvc.mock.calls[0]!;
+    expect(path).toBe("/agenda/appointments?tenant=t1");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      start: "2026-06-18T14:00:00-03:00", duration_min: 60, contact_name: null, contact_phone: null,
+      title: "Corte", online: true, contact_email: null, odoo_partner_id: 7, invite: false,
+    });
+    const body = await res.json();
+    expect(body.id).toBe("novo");
+  });
+
+  it("409 do upstream vira 409 slot_ocupado", async () => {
+    callSvc.mockResolvedValue(upstream({ error: "slot_ocupado" }, 409));
+    const res = await criarPOST(new Request("http://x/api/app/agenda/appointments", {
+      method: "POST", body: JSON.stringify({ inicioISO: "2026-06-18T14:00:00-03:00", duracaoMin: 60, cliente: "Ana" }),
+    }));
+    expect(res.status).toBe(409);
+    expect((await res.json()).error).toBe("slot_ocupado");
   });
 });
