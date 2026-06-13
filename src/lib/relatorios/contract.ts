@@ -25,6 +25,11 @@ export const relatoriosSummarySchema = z.object({
   funil: z.object({
     etapaTrava: z.string().nullable(),
     motivoPerdaTop: z.string().nullable(),
+    // Capacidade 4 ("Marcar como vendido"): nº de opps em Venda Fechada (role `venda`)
+    // + soma de expected_revenue. Opcionais p/ rollout: o WF n8n emite null quando o
+    // tenant não tem o role (Funil A) e o contrato não quebra se o WF não atualizou ainda.
+    vendaFechadaCount: z.number().nullable().optional(),
+    faturamentoBrl: z.number().nullable().optional(),
   }),
   pico: z
     .object({ diaSemana: z.string(), faixaHorario: z.string() })

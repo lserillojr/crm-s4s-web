@@ -61,4 +61,22 @@ describe("RelatoriosClient — cards fase 2", () => {
       screen.getByText("Ainda sem movimento suficiente pra apontar um padrão"),
     ).toBeInTheDocument();
   });
+
+  it("mostra o card de Venda Fechada + R$ quando há vendas", () => {
+    mockData({ funil: { etapaTrava: "Orçamento", motivoPerdaTop: "Preço", vendaFechadaCount: 3, faturamentoBrl: 4480 } });
+    render(<RelatoriosClient />);
+    expect(screen.getByText("3 vendas fechadas — R$ 4.480 faturados")).toBeInTheDocument();
+  });
+
+  it("omite o card de Venda Fechada quando 0", () => {
+    mockData({ funil: { etapaTrava: "Orçamento", motivoPerdaTop: "Preço", vendaFechadaCount: 0, faturamentoBrl: 0 } });
+    render(<RelatoriosClient />);
+    expect(screen.queryByText(/vendas? fechadas?/)).not.toBeInTheDocument();
+  });
+
+  it("omite o card de Venda Fechada quando null (WF antigo / tenant sem o role)", () => {
+    mockData({ funil: { etapaTrava: "Orçamento", motivoPerdaTop: "Preço" } });
+    render(<RelatoriosClient />);
+    expect(screen.queryByText(/vendas? fechadas?/)).not.toBeInTheDocument();
+  });
 });

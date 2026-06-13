@@ -41,3 +41,20 @@ export function frasePico(pico: RelatoriosSummary["pico"]): string {
   if (!pico) return "Ainda sem movimento suficiente pra apontar um padrão";
   return `Seu pico é ${pico.diaSemana}, ${pico.faixaHorario}`;
 }
+
+/** Separador de milhar pt-BR (ponto), sem casas decimais — determinístico (sem ICU). */
+function milhar(valor: number): string {
+  return Math.round(valor).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/**
+ * Venda Fechada (capacidade 4): "a IA vende" virando R$. Mostra a contagem e, quando
+ * houve faturamento informado, a soma em R$ (a prova de valor — métrica-âncora A3).
+ */
+export function fraseVendaFechada(count: number, faturamentoBrl: number | null): string {
+  const v = count === 1 ? "venda fechada" : "vendas fechadas";
+  if (faturamentoBrl != null && faturamentoBrl > 0) {
+    return `${count} ${v} — R$ ${milhar(faturamentoBrl)} faturados`;
+  }
+  return `${count} ${v}`;
+}

@@ -30,4 +30,24 @@ describe("relatoriosSummarySchema", () => {
     const { period, ...semPeriod } = valido;
     expect(() => relatoriosSummarySchema.parse(semPeriod)).toThrow();
   });
+
+  it("aceita Venda Fechada + faturamento no bloco funil", () => {
+    const comVendas = {
+      ...valido,
+      funil: { etapaTrava: "Orçamento", motivoPerdaTop: "Preço", vendaFechadaCount: 3, faturamentoBrl: 4480 },
+    };
+    const parsed = relatoriosSummarySchema.parse(comVendas);
+    expect(parsed.funil.vendaFechadaCount).toBe(3);
+    expect(parsed.funil.faturamentoBrl).toBe(4480);
+  });
+
+  it("trata Venda Fechada/faturamento como opcionais (WF antigo / tenant sem o role)", () => {
+    // payload sem os campos novos continua válido (compatibilidade de rollout)
+    expect(() => relatoriosSummarySchema.parse(valido)).not.toThrow();
+    const comNulos = {
+      ...valido,
+      funil: { etapaTrava: null, motivoPerdaTop: null, vendaFechadaCount: null, faturamentoBrl: null },
+    };
+    expect(() => relatoriosSummarySchema.parse(comNulos)).not.toThrow();
+  });
 });

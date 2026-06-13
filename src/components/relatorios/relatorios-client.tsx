@@ -9,6 +9,7 @@ import {
   fraseOndeTrava,
   fraseForaHorario,
   frasePico,
+  fraseVendaFechada,
 } from "@/lib/relatorios/frases";
 import { NumeroCard } from "./numero-card";
 
@@ -76,6 +77,16 @@ export function RelatoriosClient() {
             destaque={data.funil.etapaTrava ?? "—"}
             frase={fraseOndeTrava(data.funil.etapaTrava, data.funil.motivoPerdaTop)}
           />
+          {data.funil.vendaFechadaCount != null && data.funil.vendaFechadaCount > 0 && (
+            <NumeroCard
+              destaque={
+                data.funil.faturamentoBrl && data.funil.faturamentoBrl > 0
+                  ? `R$ ${Math.round(data.funil.faturamentoBrl).toLocaleString("pt-BR")}`
+                  : String(data.funil.vendaFechadaCount)
+              }
+              frase={fraseVendaFechada(data.funil.vendaFechadaCount, data.funil.faturamentoBrl ?? null)}
+            />
+          )}
           {data.ia.foraHorario != null && data.ia.foraHorario > 0 && (
             <NumeroCard
               destaque={String(data.ia.foraHorario)}
