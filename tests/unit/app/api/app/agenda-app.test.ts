@@ -7,6 +7,8 @@ import { requireAppUser } from "@/lib/api/require-app-user";
 import { callAgendaService } from "@/lib/ai-service";
 import { GET as listGET } from "@/app/api/app/agenda/list/route";
 import { POST as criarPOST } from "@/app/api/app/agenda/appointments/route";
+import { POST as reschedulePOST } from "@/app/api/app/agenda/appointments/[id]/reschedule/route";
+import { POST as cancelPOST } from "@/app/api/app/agenda/appointments/[id]/cancel/route";
 
 const reqUser = vi.mocked(requireAppUser);
 const callSvc = vi.mocked(callAgendaService);
@@ -113,5 +115,38 @@ describe("POST /api/app/agenda/appointments", () => {
     }));
     expect(res.status).toBe(409);
     expect((await res.json()).error).toBe("slot_ocupado");
+  });
+});
+
+describe("POST /api/app/agenda/appointments/[id]/reschedule", () => {
+  it("422 sem novoInicioISO", async () => {
+    const res = await reschedulePOST(new Request("http://x", { method: "POST", body: JSON.stringify({}) }), { params: { id: "ap1" } });
+    expect(res.status).toBe(422);
+  });
+  it("repassa newSlotIso e o id ao FastAPI", async () => {
+    callSvc.mockResolvedValue(upstream({ status: "remarcado" }));
+    const res = await reschedulePOST(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ novoInicioISO: "2026-06-20T10:00:00-03:00" }) }),
+      { params: { id: "ap1" } },
+    );
+    expect(res.status).toBe(200);
+    const [path, init] = callSvc.mock.calls[0]!;
+    expect(path).toBe("/agenda/appointments/ap1/reschedule?tenant=t1");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ new_slot_iso: "2026-06-20T10:00:00-03:00" });
+  });
+});
+
+describe("POST /api/app/agenda/appointments/[id]/cancel", () => {
+  it("chama cancel no FastAPI com tenant e id", async () => {
+    callSvc.mockResolvedValue(upstream({ status: "cancelado" }));
+    const res = await cancelPOST(new Request("http://x", { method: "POST" }), { params: { id: "ap2" } });
+    expect(res.status).toBe(200);
+    expect(callSvc).toHaveBeenCalledWith("/agenda/appointments/ap2/cancel?tenant=t1", { method: "POST" });
+  });
+  it("502 sanitizado se o upstream falhar", async () => {
+    callSvc.mockResolvedValue(upstream({ error: "x" }, 500));
+    const res = await cancelPOST(new Request("http://x", { method: "POST" }), { params: { id: "ap2" } });
+    expect(res.status).toBe(502);
+    expect((await res.json()).detail).toBeUndefined();
   });
 });
