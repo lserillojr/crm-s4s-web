@@ -134,4 +134,22 @@ describe("PUT /api/funil-config", () => {
     const res = await PUT(putReq({ renames: [{ role: "novo", name: "X" }] }) as never);
     expect(res.status).toBe(502);
   });
+
+  it("propaga corpo do WF quando rename falha (ok:false + results)", async () => {
+    authMock.mockResolvedValue(VALID_SESSION);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({ ok: false, results: [{ role: "orcamento", ok: false, error: "Já existe uma etapa com o nome Proposta" }] }),
+        { status: 200 },
+      ),
+    );
+    const { PUT } = await loadRoute();
+    const res = await PUT(
+      putReq({ renames: [{ role: "orcamento", name: "Proposta" }] }) as never,
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.results[0].error).toContain("Já existe");
+  });
 });

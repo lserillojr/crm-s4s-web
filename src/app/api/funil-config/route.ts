@@ -3,12 +3,17 @@ import { requireApiTenant } from "@/lib/api/require-tenant";
 import { callAiService } from "@/lib/api/ai-service";
 import { funilGetResponseSchema, renamePayloadSchema } from "@/lib/funil/schema";
 import type { FunilStageRow } from "@/lib/funil/schema";
-import { meaningForRole } from "@/lib/funil/roles";
+import { meaningForRole, ROLE_ORDER } from "@/lib/funil/roles";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" };
+
+function orderIndex(role: string | null): number {
+  const i = ROLE_ORDER.indexOf(role ?? "");
+  return i === -1 ? 999 : i;
+}
 const GET_PATH = "/funil-config/api/v1/get";
 const SAVE_PATH = "/funil-config/api/v1/save";
 
@@ -43,8 +48,6 @@ export async function GET(_req: NextRequest) {
   }
 
   const rows: FunilStageRow[] = parsed.data.stages
-    .slice()
-    .sort((a, b) => a.sequence - b.sequence)
     .map((stage) => ({
       role: stage.s4s_role ?? null,
       meaning: meaningForRole(stage.s4s_role),
@@ -52,7 +55,8 @@ export async function GET(_req: NextRequest) {
       sequence: stage.sequence,
       isWon: stage.is_won,
       editable: !!stage.s4s_role,
-    }));
+    }))
+    .sort((a, b) => a.sequence - b.sequence || orderIndex(a.role) - orderIndex(b.role));
 
   return Response.json(
     { stages: rows, loaded: true },
@@ -92,5 +96,5 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  return Response.json({ ok: true }, { status: 200, headers: NO_STORE });
+  return Response.json(result.data, { status: 200, headers: NO_STORE });
 }
