@@ -209,7 +209,7 @@ describe("CatalogoClient", () => {
     });
   });
 
-  it("desativar item ativo chama PUT com isActive=false", async () => {
+  it("desativar item ativo chama DELETE /api/catalogo/[id] (soft-delete)", async () => {
     const mockFetch = vi.fn();
     mockFetch.mockResolvedValueOnce(
       new Response(
@@ -249,5 +249,203 @@ describe("CatalogoClient", () => {
       );
       expect(deleteCall).toBeDefined();
     });
+  });
+
+  // ── GAP 1: adicionar produto manual ─────────────────────────────────────────
+
+  it("botão 'Adicionar produto' abre formulário de criação", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("adicionar-produto"));
+
+    expect(screen.getByTestId("add-campo-titulo")).toBeInTheDocument();
+    expect(screen.getByTestId("add-campo-descricao")).toBeInTheDocument();
+    expect(screen.getByTestId("add-campo-preco")).toBeInTheDocument();
+    expect(screen.getByTestId("add-campo-categoria")).toBeInTheDocument();
+    expect(screen.getByTestId("add-campo-attributes")).toBeInTheDocument();
+  });
+
+  it("preencher e submeter formulário de adição dispara POST /api/catalogo sem isActive:true", async () => {
+    const mockFetch = vi.fn();
+    // GET lista inicial (vazia)
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    // POST create
+    const newProduct: CatalogProduct = {
+      id: "prod-new",
+      key: "hidratacao-profunda",
+      title: "Hidratação Profunda",
+      description: "Tratamento intensivo",
+      priceBrl: 120,
+      category: "Cabelo",
+      attributes: { sessoes: 1 },
+      source: "manual",
+      isActive: false,
+      sortOrder: 0,
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ product: newProduct }), { status: 201 }),
+    );
+    // GET refetch após criação
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [newProduct] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    // Espera lista carregar e abre o form
+    await waitFor(() =>
+      expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("adicionar-produto"));
+
+    // Preenche os campos
+    fireEvent.change(screen.getByTestId("add-campo-titulo"), {
+      target: { value: "Hidratação Profunda" },
+    });
+    fireEvent.change(screen.getByTestId("add-campo-descricao"), {
+      target: { value: "Tratamento intensivo" },
+    });
+    fireEvent.change(screen.getByTestId("add-campo-preco"), {
+      target: { value: "120" },
+    });
+    fireEvent.change(screen.getByTestId("add-campo-categoria"), {
+      target: { value: "Cabelo" },
+    });
+    fireEvent.change(screen.getByTestId("add-campo-attributes"), {
+      target: { value: '{"sessoes": 1}' },
+    });
+
+    // Salva
+    fireEvent.click(screen.getByTestId("add-salvar"));
+
+    await waitFor(() => {
+      const calls = mockFetch.mock.calls;
+      const postCall = calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo" &&
+          c[1]?.method === "POST",
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(postCall![1].body as string);
+      expect(body.title).toBe("Hidratação Profunda");
+      expect(body.attributes).toEqual({ sessoes: 1 });
+      // Produto criado como rascunho — isActive NÃO deve ser true
+      expect(body.isActive).not.toBe(true);
+    });
+  });
+
+  // ── GAP 2: edição de attributes ─────────────────────────────────────────────
+
+  it("editar attributes de produto existente dispara PUT com objeto attributes parseado", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          products: [{ ...PRODUCT_ATIVO, attributes: { duracao: "45min" } }],
+        }),
+        { status: 200 },
+      ),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          product: {
+            ...PRODUCT_ATIVO,
+            attributes: { duracao: "60min", sessoes: 2 },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [PRODUCT_ATIVO] }), {
+        status: 200,
+      }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Corte Feminino")).toBeInTheDocument(),
+    );
+
+    // Abre edição
+    fireEvent.click(screen.getByTestId("editar-prod-1"));
+
+    // Edita o campo de attributes
+    const attrsField = screen.getByTestId("campo-attributes");
+    fireEvent.change(attrsField, {
+      target: { value: '{"duracao": "60min", "sessoes": 2}' },
+    });
+
+    // Salva
+    fireEvent.click(screen.getByTestId("salvar-edicao"));
+
+    await waitFor(() => {
+      const calls = mockFetch.mock.calls;
+      const putCall = calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0].includes("/api/catalogo/prod-1") &&
+          c[1]?.method === "PUT",
+      );
+      expect(putCall).toBeDefined();
+      const body = JSON.parse(putCall![1].body as string);
+      expect(body.attributes).toEqual({ duracao: "60min", sessoes: 2 });
+    });
+  });
+
+  it("JSON inválido no campo attributes bloqueia o PUT e exibe erro inline", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ products: [PRODUCT_ATIVO] }),
+        { status: 200 },
+      ),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Corte Feminino")).toBeInTheDocument(),
+    );
+
+    // Abre edição
+    fireEvent.click(screen.getByTestId("editar-prod-1"));
+
+    // Insere JSON inválido
+    const attrsField = screen.getByTestId("campo-attributes");
+    fireEvent.change(attrsField, { target: { value: "{invalid json" } });
+
+    // Tenta salvar
+    fireEvent.click(screen.getByTestId("salvar-edicao"));
+
+    // Mensagem de erro deve aparecer
+    await waitFor(() =>
+      expect(screen.getByTestId("edit-attributes-error")).toBeInTheDocument(),
+    );
+
+    // Nenhum PUT deve ter sido disparado (só o GET inicial)
+    const putCalls = mockFetch.mock.calls.filter(
+      (c) =>
+        typeof c[0] === "string" &&
+        c[0].includes("/api/catalogo/prod-1") &&
+        c[1]?.method === "PUT",
+    );
+    expect(putCalls).toHaveLength(0);
   });
 });

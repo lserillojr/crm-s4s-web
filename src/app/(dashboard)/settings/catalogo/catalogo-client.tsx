@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import type { CatalogProduct } from "@/lib/catalogo/types";
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
@@ -12,6 +13,23 @@ import type { CatalogProduct } from "@/lib/catalogo/types";
 async function fetchCatalogo(): Promise<{ products: CatalogProduct[] }> {
   const r = await fetch("/api/catalogo", { cache: "no-store" });
   if (!r.ok) throw new Error(`catalogo ${r.status}`);
+  return r.json();
+}
+
+async function createProduct(data: {
+  key: string;
+  title: string;
+  description: string | null;
+  priceBrl: number | null;
+  category: string | null;
+  attributes: Record<string, unknown>;
+}): Promise<{ product: CatalogProduct }> {
+  const r = await fetch("/api/catalogo", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...data, isActive: false }),
+  });
+  if (!r.ok) throw new Error(`create ${r.status}`);
   return r.json();
 }
 
@@ -33,13 +51,28 @@ async function deactivateProduct(id: string): Promise<void> {
   if (!r.ok) throw new Error(`deactivate ${r.status}`);
 }
 
-// ─── Inline edit form ────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Turns a display title into a URL-safe key, e.g. "Corte Feminino" → "corte-feminino" */
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120) || "produto";
+}
+
+// ─── Inline edit state ───────────────────────────────────────────────────────
 
 type EditState = {
   title: string;
   description: string;
   priceBrl: string; // string para o input; converte na hora de salvar
   category: string;
+  attributesJson: string; // pretty JSON string
+  attributesError: string | null;
 };
 
 function toEditState(p: CatalogProduct): EditState {
@@ -48,7 +81,57 @@ function toEditState(p: CatalogProduct): EditState {
     description: p.description ?? "",
     priceBrl: p.priceBrl != null ? String(p.priceBrl) : "",
     category: p.category ?? "",
+    attributesJson:
+      Object.keys(p.attributes).length > 0
+        ? JSON.stringify(p.attributes, null, 2)
+        : "",
+    attributesError: null,
   };
+}
+
+// ─── Add-product form state ───────────────────────────────────────────────────
+
+type AddState = {
+  title: string;
+  description: string;
+  priceBrl: string;
+  category: string;
+  attributesJson: string;
+  attributesError: string | null;
+};
+
+const EMPTY_ADD_STATE: AddState = {
+  title: "",
+  description: "",
+  priceBrl: "",
+  category: "",
+  attributesJson: "",
+  attributesError: null,
+};
+
+// ─── Helpers to parse form → API payload ─────────────────────────────────────
+
+function parseAttributesJson(
+  raw: string,
+): { ok: true; value: Record<string, unknown> } | { ok: false } {
+  const trimmed = raw.trim();
+  if (trimmed === "") return { ok: true, value: {} };
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      return { ok: true, value: parsed as Record<string, unknown> };
+    }
+    return { ok: false };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function parsePriceBrl(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isNaN(n) ? null : n;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -60,6 +143,20 @@ export function CatalogoClient() {
   // editingId: id do produto sendo editado inline (null = nenhum)
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
+
+  // addOpen: controla se o formulário de adição manual está aberto
+  const [addOpen, setAddOpen] = useState(false);
+  const [addState, setAddState] = useState<AddState>(EMPTY_ADD_STATE);
+
+  const createMutation = useMutation({
+    mutationFn: (data: Parameters<typeof createProduct>[0]) =>
+      createProduct(data),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["catalogo"] });
+      setAddOpen(false);
+      setAddState(EMPTY_ADD_STATE);
+    },
+  });
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -121,16 +218,49 @@ export function CatalogoClient() {
 
   function saveEdit(id: string) {
     if (!editState) return;
-    const priceBrl =
-      editState.priceBrl.trim() === "" ? null : Number(editState.priceBrl);
+
+    // Validate attributes JSON before submitting
+    const attrResult = parseAttributesJson(editState.attributesJson);
+    if (!attrResult.ok) {
+      setEditState((s) =>
+        s ? { ...s, attributesError: "JSON inválido. Corrija antes de salvar." } : s,
+      );
+      return;
+    }
+
+    const priceBrl = parsePriceBrl(editState.priceBrl);
     updateMutation.mutate({
       id,
       data: {
         title: editState.title,
         description: editState.description || null,
-        priceBrl: Number.isNaN(priceBrl) ? null : priceBrl,
+        priceBrl,
         category: editState.category || null,
+        attributes: attrResult.value,
       },
+    });
+  }
+
+  function submitAdd() {
+    if (!addState.title.trim()) return;
+
+    const attrResult = parseAttributesJson(addState.attributesJson);
+    if (!attrResult.ok) {
+      setAddState((s) => ({
+        ...s,
+        attributesError: "JSON inválido. Corrija antes de salvar.",
+      }));
+      return;
+    }
+
+    const priceBrl = parsePriceBrl(addState.priceBrl);
+    createMutation.mutate({
+      key: slugify(addState.title),
+      title: addState.title.trim(),
+      description: addState.description.trim() || null,
+      priceBrl,
+      category: addState.category.trim() || null,
+      attributes: attrResult.value,
     });
   }
 
@@ -148,6 +278,153 @@ export function CatalogoClient() {
         atendimento.
       </div>
 
+      {/* Botão para abrir formulário de adição manual */}
+      {!addOpen && (
+        <Button
+          data-testid="adicionar-produto"
+          onClick={() => setAddOpen(true)}
+          className="bg-s4s-blue hover:bg-s4s-blue/90"
+        >
+          Adicionar produto
+        </Button>
+      )}
+
+      {/* Formulário de adição manual */}
+      {addOpen && (
+        <Card data-testid="form-adicionar">
+          <CardHeader>
+            <CardTitle className="text-base">Novo produto</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="add-titulo">
+                Nome do produto <span aria-hidden="true">*</span>
+              </Label>
+              <Input
+                id="add-titulo"
+                data-testid="add-campo-titulo"
+                value={addState.title}
+                onChange={(e) =>
+                  setAddState((s) => ({ ...s, title: e.target.value }))
+                }
+                disabled={createMutation.isPending}
+                placeholder="Ex.: Corte Feminino"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-descricao">Descrição</Label>
+              <Input
+                id="add-descricao"
+                data-testid="add-campo-descricao"
+                value={addState.description}
+                onChange={(e) =>
+                  setAddState((s) => ({ ...s, description: e.target.value }))
+                }
+                disabled={createMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-preco">
+                Preço (R$) — deixe vazio para &ldquo;sob consulta&rdquo;
+              </Label>
+              <Input
+                id="add-preco"
+                data-testid="add-campo-preco"
+                type="number"
+                min="0"
+                step="0.01"
+                value={addState.priceBrl}
+                onChange={(e) =>
+                  setAddState((s) => ({ ...s, priceBrl: e.target.value }))
+                }
+                disabled={createMutation.isPending}
+                placeholder="Sob consulta"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-categoria">Categoria</Label>
+              <Input
+                id="add-categoria"
+                data-testid="add-campo-categoria"
+                value={addState.category}
+                onChange={(e) =>
+                  setAddState((s) => ({ ...s, category: e.target.value }))
+                }
+                disabled={createMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="add-attributes">
+                Atributos (JSON) — deixe vazio se não houver
+              </Label>
+              <Textarea
+                id="add-attributes"
+                data-testid="add-campo-attributes"
+                value={addState.attributesJson}
+                onChange={(e) =>
+                  setAddState((s) => ({
+                    ...s,
+                    attributesJson: e.target.value,
+                    attributesError: null,
+                  }))
+                }
+                disabled={createMutation.isPending}
+                placeholder='{"duracao": "60min", "sessoes": 1}'
+                rows={4}
+                className="font-mono text-xs"
+              />
+              {addState.attributesError && (
+                <p
+                  role="alert"
+                  data-testid="add-attributes-error"
+                  className="text-xs text-red-600"
+                >
+                  {addState.attributesError}
+                </p>
+              )}
+            </div>
+
+            {createMutation.isError && (
+              <div
+                role="alert"
+                className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+              >
+                Não consegui salvar. Tente de novo em instantes.
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                data-testid="add-salvar"
+                size="sm"
+                onClick={submitAdd}
+                disabled={createMutation.isPending || !addState.title.trim()}
+                className="bg-s4s-blue hover:bg-s4s-blue/90"
+              >
+                {createMutation.isPending ? "Salvando..." : "Salvar como rascunho"}
+              </Button>
+              <Button
+                data-testid="add-cancelar"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setAddOpen(false);
+                  setAddState(EMPTY_ADD_STATE);
+                  createMutation.reset();
+                }}
+                disabled={createMutation.isPending}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {(updateMutation.isError || deactivateMutation.isError || publishMutation.isError) && (
         <div
           role="alert"
@@ -157,7 +434,7 @@ export function CatalogoClient() {
         </div>
       )}
 
-      {products.length === 0 && (
+      {products.length === 0 && !addOpen && (
         <p className="text-sm text-muted-foreground">
           Nenhum produto cadastrado ainda.
         </p>
@@ -249,6 +526,40 @@ export function CatalogoClient() {
                       }
                       disabled={updateMutation.isPending}
                     />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor={`attributes-${p.id}`}>
+                      Atributos (JSON) — deixe vazio se não houver
+                    </Label>
+                    <Textarea
+                      id={`attributes-${p.id}`}
+                      data-testid="campo-attributes"
+                      value={editState.attributesJson}
+                      onChange={(e) =>
+                        setEditState(
+                          (s) =>
+                            s && {
+                              ...s,
+                              attributesJson: e.target.value,
+                              attributesError: null,
+                            },
+                        )
+                      }
+                      disabled={updateMutation.isPending}
+                      placeholder='{"duracao": "60min"}'
+                      rows={4}
+                      className="font-mono text-xs"
+                    />
+                    {editState.attributesError && (
+                      <p
+                        role="alert"
+                        data-testid="edit-attributes-error"
+                        className="text-xs text-red-600"
+                      >
+                        {editState.attributesError}
+                      </p>
+                    )}
                   </div>
 
                   <div className="flex gap-2">
