@@ -79,4 +79,22 @@ describe("POST /api/push/handoff", () => {
     });
     expect(deleteTokensMock).toHaveBeenCalledWith(expect.anything(), ["bad"]);
   });
+  it("lead_quente: inclui acao=marcar-vendido no data (deep-link p/ fechar)", async () => {
+    getTenantIdMock.mockResolvedValue("ten-1");
+    getTokensMock.mockResolvedValue(["good"]);
+    sendPushMock.mockResolvedValue({ deadTokens: [] });
+    const { POST } = await load();
+    await POST(postReq({ ...validBody, tipo: "lead_quente" }));
+    const [, payload] = sendPushMock.mock.calls[0]!;
+    expect(payload.data).toMatchObject({ type: "handoff", tipo: "lead_quente", acao: "marcar-vendido" });
+  });
+  it("escalacao: NÃO inclui acao no data (handoff comum não abre o campo R$)", async () => {
+    getTenantIdMock.mockResolvedValue("ten-1");
+    getTokensMock.mockResolvedValue(["good"]);
+    sendPushMock.mockResolvedValue({ deadTokens: [] });
+    const { POST } = await load();
+    await POST(postReq(validBody)); // tipo: escalacao
+    const [, payload] = sendPushMock.mock.calls[0]!;
+    expect(payload.data.acao).toBeUndefined();
+  });
 });

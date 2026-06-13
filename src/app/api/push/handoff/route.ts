@@ -35,11 +35,17 @@ export async function POST(req: Request) {
   const tokens = await getTokensForTenantOwner(pool, tenantId);
   if (tokens.length === 0) return Response.json({ skipped: "no_devices" }, { status: 200, headers: NO_STORE });
 
+  // Lead quente (IA negociou e entregou pronto pra fechar): o push abre o app já
+  // no campo "Marcar como vendido" (gate A1 — o MEI fecha de onde recebe o aviso).
+  const acao = b.tipo === "lead_quente" ? "marcar-vendido" : undefined;
   const { deadTokens } = await sendPush(tokens, {
     title: b.titulo,
     body: b.corpo,
     silent: b.silencioso,
-    data: { type: "handoff", account_id: b.account_id, conversation_id: b.conversation_id, tenant_slug: b.tenant_slug, tipo: b.tipo },
+    data: {
+      type: "handoff", account_id: b.account_id, conversation_id: b.conversation_id,
+      tenant_slug: b.tenant_slug, tipo: b.tipo, ...(acao ? { acao } : {}),
+    },
   });
   if (deadTokens.length) await deleteTokens(pool, deadTokens);
 
