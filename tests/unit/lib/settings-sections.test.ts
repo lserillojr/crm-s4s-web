@@ -9,6 +9,7 @@ describe("SETTINGS_SECTIONS", () => {
       "/settings/catalogo",
       "/settings/working-hours",
       "/settings/acompanhamento",
+      "/settings/funil",
     ]);
   });
 

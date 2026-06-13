@@ -1,4 +1,4 @@
-import { Plug, BookOpen, Package, Clock, BellRing, type LucideIcon } from "lucide-react";
+import { Plug, BookOpen, Package, Clock, BellRing, Filter, type LucideIcon } from "lucide-react";
 
 export interface SettingsSection {
   href: string;
@@ -47,5 +47,12 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     description:
       "A IA reativa clientes que sumiram ou não compareceram — ligue e ajuste do seu jeito.",
     icon: BellRing,
+  },
+  {
+    href: "/settings/funil",
+    label: "Etapas do funil",
+    description:
+      "Renomeie as etapas do seu funil de vendas para a língua do seu negócio.",
+    icon: Filter,
   },
 ];
