@@ -1,4 +1,5 @@
 import { requireAppUser } from "@/lib/api/require-app-user";
+import { upstreamError } from "@/lib/api/upstream-error";
 import { chatwootForTenant } from "@/lib/api/conversations-service";
 
 export const runtime = "nodejs";
@@ -41,6 +42,6 @@ export async function GET(
       headers: { "Content-Type": contentType, "Cache-Control": "private, max-age=3600" },
     });
   } catch (e) {
-    return Response.json({ error: "upstream", detail: String(e) }, { status: 502, headers: NO_STORE });
+    return upstreamError(e);
   }
 }

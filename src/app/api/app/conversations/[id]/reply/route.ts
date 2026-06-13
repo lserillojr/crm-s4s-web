@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { requireAppUser } from "@/lib/api/require-app-user";
+import { upstreamError } from "@/lib/api/upstream-error";
 import { chatwootForTenant } from "@/lib/api/conversations-service";
 
 export const runtime = "nodejs";
@@ -21,6 +22,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await cw.setAiState(id, "escalated");
     return Response.json({ ok: true, status: "posse", aiState: "escalated" }, { headers: NO_STORE });
   } catch (e) {
-    return Response.json({ error: "upstream", detail: String(e) }, { status: 502, headers: NO_STORE });
+    return upstreamError(e);
   }
 }

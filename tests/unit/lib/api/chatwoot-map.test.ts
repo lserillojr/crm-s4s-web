@@ -64,6 +64,7 @@ describe("mapListItem", () => {
       id: 7, contato: "Maria", motivo: "takeover_humano",
       resumoPreview: "Cliente quer orçamento", status: "posse",
       handoffEm: "2026-06-07T10:00:00Z",
+      selo: "assumida", ultimaMensagem: "Cliente quer orçamento", em: null,
     });
   });
   it("contato cai para 'Cliente' sem nome", () => {

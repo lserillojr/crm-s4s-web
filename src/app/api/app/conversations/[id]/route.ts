@@ -1,4 +1,5 @@
 import { requireAppUser } from "@/lib/api/require-app-user";
+import { upstreamError } from "@/lib/api/upstream-error";
 import { chatwootForTenant } from "@/lib/api/conversations-service";
 import { mapConversa } from "@/lib/api/chatwoot-map";
 
@@ -18,6 +19,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const [conv, msgs] = await Promise.all([cw.getConversation(id), cw.getMessages(id)]);
     return Response.json(mapConversa(conv, msgs), { headers: NO_STORE });
   } catch (e) {
-    return Response.json({ error: "upstream", detail: String(e) }, { status: 502, headers: NO_STORE });
+    return upstreamError(e);
   }
 }
