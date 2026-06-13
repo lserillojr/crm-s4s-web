@@ -20,6 +20,8 @@ import {
   jsonb,
   timestamp,
   pgEnum,
+  numeric,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const userRoleEnum = pgEnum("user_role", ["owner", "agent", "viewer"]);
@@ -90,8 +92,36 @@ export const tenantCreationAudit = pgTable("tenant_creation_audit", {
   completedAt: timestamp("completed_at", { withTimezone: true }),
 });
 
+export const tenantProductCatalog = pgTable(
+  "tenant_product_catalog",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    key: varchar("key", { length: 120 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    priceBrl: numeric("price_brl", { precision: 12, scale: 2 }),
+    category: varchar("category", { length: 80 }),
+    attributes: jsonb("attributes").notNull().default({}),
+    source: varchar("source", { length: 24 }).notNull().default("manual"),
+    isActive: boolean("is_active").notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("tenant_product_catalog_tenant_key").on(t.tenantId, t.key)],
+);
+
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type TenantCreationAuditRow = typeof tenantCreationAudit.$inferSelect;
+export type TenantProductCatalogRow = typeof tenantProductCatalog.$inferSelect;
+export type NewTenantProductCatalog = typeof tenantProductCatalog.$inferInsert;
