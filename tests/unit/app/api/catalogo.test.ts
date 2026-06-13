@@ -184,6 +184,25 @@ describe("POST /api/catalogo", () => {
     expect(params).toContain(false);
     expect(params).not.toContain(true);
   });
+
+  it("201 sortOrder=5 passa 5 no $9 dos params SQL", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    poolQuery.mockResolvedValue({ rows: [{ ...PRODUCT_ROW, sort_order: 5 }], rowCount: 1 });
+    const res = await POST(postReq({ ...validDraft, sortOrder: 5 }) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    // params: [tenantId, key, title, description, priceBrl, category, attributes, isActive, sortOrder]
+    expect(params[8]).toBe(5);
+  });
+
+  it("201 sem sortOrder usa 0 por defeito no $9 dos params SQL", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    poolQuery.mockResolvedValue({ rows: [PRODUCT_ROW], rowCount: 1 });
+    const res = await POST(postReq(validDraft) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    expect(params[8]).toBe(0);
+  });
 });
 
 // ─────────────────────────────────────────────
@@ -238,6 +257,16 @@ describe("PUT /api/catalogo/[id]", () => {
     poolQuery.mockResolvedValue({ rows: [], rowCount: 0 });
     const res = await PUT(putReq(validUpdate) as never, params as never);
     expect(res.status).toBe(404);
+  });
+
+  it("409 quando renomear key colide com key existente do tenant (unique violation)", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    const uniqueErr = Object.assign(new Error("duplicate key"), { code: "23505" });
+    poolQuery.mockRejectedValue(uniqueErr);
+    const res = await PUT(putReq({ key: "chave-ja-existente" }) as never, params as never);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe("key_already_exists");
   });
 });
 

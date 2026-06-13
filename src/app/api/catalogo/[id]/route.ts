@@ -1,27 +1,12 @@
 import { z } from "zod";
 import { requireApiTenant } from "@/lib/api/require-tenant";
 import { getPool } from "@/lib/db/pool";
-import type { CatalogProduct } from "@/lib/catalogo/types";
+import { rowToProduct } from "@/lib/catalogo/row";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" };
-
-function rowToProduct(row: Record<string, unknown>): CatalogProduct {
-  return {
-    id: row.id as string,
-    key: row.key as string,
-    title: row.title as string,
-    description: (row.description as string | null) ?? null,
-    priceBrl: row.price_brl == null ? null : Number(row.price_brl),
-    category: (row.category as string | null) ?? null,
-    attributes: (row.attributes as Record<string, unknown>) ?? {},
-    source: row.source as string,
-    isActive: Boolean(row.is_active),
-    sortOrder: Number(row.sort_order),
-  };
-}
 
 // ─────────────────────────────────────────────
 // PUT /api/catalogo/[id] — update a product
@@ -119,15 +104,33 @@ export async function PUT(
   const tenantParam = paramIdx + 1;
 
   const pool = getPool();
-  const { rows } = await pool.query(
-    `UPDATE tenant_product_catalog
-        SET ${setClauses.join(", ")}
-      WHERE id = $${idParam}
-        AND tenant_id = $${tenantParam}
-      RETURNING id, tenant_id, key, title, description, price_brl, category,
-                attributes, source, is_active, sort_order, created_at, updated_at`,
-    values,
-  );
+  let rows: Record<string, unknown>[];
+  try {
+    const result = await pool.query(
+      `UPDATE tenant_product_catalog
+          SET ${setClauses.join(", ")}
+        WHERE id = $${idParam}
+          AND tenant_id = $${tenantParam}
+        RETURNING id, tenant_id, key, title, description, price_brl, category,
+                  attributes, source, is_active, sort_order, created_at, updated_at`,
+      values,
+    );
+    rows = result.rows;
+  } catch (err: unknown) {
+    // PostgreSQL unique violation: renaming key collides with an existing (tenant_id, key)
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code: string }).code === "23505"
+    ) {
+      return Response.json(
+        { error: "key_already_exists" },
+        { status: 409, headers: NO_STORE },
+      );
+    }
+    throw err;
+  }
 
   if (rows.length === 0) {
     return Response.json(

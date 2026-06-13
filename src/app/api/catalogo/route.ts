@@ -1,30 +1,12 @@
 import { z } from "zod";
 import { requireApiTenant } from "@/lib/api/require-tenant";
 import { getPool } from "@/lib/db/pool";
-import type { CatalogProduct } from "@/lib/catalogo/types";
+import { rowToProduct } from "@/lib/catalogo/row";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const NO_STORE = { "Cache-Control": "no-store" };
-
-/** Convert a DB row (snake_case) to CatalogProduct (camelCase).
- *  price_brl is NUMERIC — pg returns it as string; convert to number or null. */
-function rowToProduct(row: Record<string, unknown>): CatalogProduct {
-  return {
-    id: row.id as string,
-    key: row.key as string,
-    title: row.title as string,
-    description: (row.description as string | null) ?? null,
-    priceBrl:
-      row.price_brl == null ? null : Number(row.price_brl),
-    category: (row.category as string | null) ?? null,
-    attributes: (row.attributes as Record<string, unknown>) ?? {},
-    source: row.source as string,
-    isActive: Boolean(row.is_active),
-    sortOrder: Number(row.sort_order),
-  };
-}
 
 // ─────────────────────────────────────────────
 // GET /api/catalogo
@@ -34,6 +16,8 @@ export async function GET(_req: Request) {
   if ("response" in ctx) return ctx.response;
 
   const pool = getPool();
+  // Returns ALL states (active + drafts + archived) — Portal management screen needs drafts.
+  // WF06/Task 7 filters is_active=true separately when building the AI catalog context.
   const { rows } = await pool.query(
     `SELECT id, tenant_id, key, title, description, price_brl, category,
             attributes, source, is_active, sort_order, created_at, updated_at
@@ -60,6 +44,7 @@ const createSchema = z.object({
   category: z.string().max(80).nullable().optional(),
   attributes: z.record(z.string(), z.unknown()).optional().default({}),
   isActive: z.boolean().optional().default(false),
+  sortOrder: z.number().int().optional(),
 });
 
 export async function POST(req: Request) {
@@ -92,6 +77,7 @@ export async function POST(req: Request) {
     category = null,
     attributes = {},
     isActive = false,
+    sortOrder = 0,
   } = parsed.data;
 
   const pool = getPool();
@@ -99,10 +85,10 @@ export async function POST(req: Request) {
     const { rows } = await pool.query(
       `INSERT INTO tenant_product_catalog
          (tenant_id, key, title, description, price_brl, category, attributes, source, is_active, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8, 0)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'manual', $8, $9)
        RETURNING id, tenant_id, key, title, description, price_brl, category,
                  attributes, source, is_active, sort_order, created_at, updated_at`,
-      [ctx.tenantId, key, title, description, priceBrl, category, JSON.stringify(attributes), isActive],
+      [ctx.tenantId, key, title, description, priceBrl, category, JSON.stringify(attributes), isActive, sortOrder],
     );
 
     return Response.json(
