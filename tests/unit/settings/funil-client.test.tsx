@@ -30,6 +30,31 @@ describe("FunilClient", () => {
     expect(screen.getByText("Orçamento ou proposta enviada")).toBeTruthy();
   });
 
+  it("mostra erro por etapa quando o rename colide", async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(GET_BODY), { status: 200 }));
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          results: [{ role: "orcamento", ok: false, error: "Já existe uma etapa com o nome Proposta" }],
+        }),
+        { status: 200 },
+      ),
+    );
+    await act(async () => {
+      render(<FunilClient />);
+    });
+    const input = await screen.findByDisplayValue("Em Orçamento");
+    await userEvent.clear(input);
+    await userEvent.type(input, "Proposta");
+    await userEvent.click(screen.getByRole("button", { name: /salvar/i }));
+
+    // banner de erro + mensagem por etapa
+    expect(await screen.findByText(/Já existe uma etapa com o nome Proposta/)).toBeTruthy();
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
+
   it("salva só os labels alterados", async () => {
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>;
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify(GET_BODY), { status: 200 }));
