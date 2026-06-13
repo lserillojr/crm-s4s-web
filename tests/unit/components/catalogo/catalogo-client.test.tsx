@@ -543,4 +543,242 @@ describe("CatalogoClient", () => {
     );
     expect(putCalls).toHaveLength(0);
   });
+
+  // ── Task 6: ingestão + revisão humana ────────────────────────────────────────
+
+  const INGEST_RESULT = {
+    products: [
+      {
+        key: "corte-feminino",
+        title: "Corte Feminino",
+        description: "Corte e escova",
+        price_brl: 80,
+        category: "Cabelo",
+        attributes: { duracao: "60min" },
+      },
+      {
+        key: "manicure",
+        title: "Manicure",
+        description: null,
+        price_brl: null, // sem preço → deve ser destacado
+        category: null,
+        attributes: {},
+      },
+    ],
+    warnings: ["Não consegui identificar o preço de 'Manicure'."],
+  };
+
+  it("botão 'Importar catálogo' abre painel com texto e arquivo", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+
+    expect(screen.getByTestId("import-campo-texto")).toBeInTheDocument();
+    expect(screen.getByTestId("import-campo-arquivo")).toBeInTheDocument();
+    expect(screen.getByTestId("import-analisar")).toBeInTheDocument();
+  });
+
+  it("colar texto e analisar chama POST /api/catalogo/ingest com { text }", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "Corte Feminino 80\nManicure" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    await waitFor(() => {
+      const call = mockFetch.mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo/ingest" &&
+          c[1]?.method === "POST",
+      );
+      expect(call).toBeDefined();
+      const body = JSON.parse(call![1].body as string);
+      expect(body.text).toBe("Corte Feminino 80\nManicure");
+    });
+  });
+
+  it("revisão destaca itens sem preço e exibe os warnings da IA", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    // Warnings da IA aparecem
+    await waitFor(() =>
+      expect(screen.getByTestId("import-warnings")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("import-warnings").textContent).toMatch(
+      /Manicure/,
+    );
+
+    // Os dois drafts viram cards de revisão
+    expect(screen.getByText("Corte Feminino")).toBeInTheDocument();
+    expect(screen.getByText("Manicure")).toBeInTheDocument();
+
+    // O draft sem preço (Manicure, índice 1) deve estar destacado
+    expect(screen.getByTestId("draft-sem-preco-1")).toBeInTheDocument();
+    // O draft com preço não deve ter o destaque
+    expect(screen.queryByTestId("draft-sem-preco-0")).not.toBeInTheDocument();
+  });
+
+  it("publicar um draft revisado dispara POST /api/catalogo com isActive=true", async () => {
+    const mockFetch = vi.fn();
+    // GET inicial
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    // POST ingest
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    // POST create (publicar)
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          product: {
+            id: "p-new",
+            key: "corte-feminino",
+            title: "Corte Feminino",
+            description: "Corte e escova",
+            priceBrl: 80,
+            category: "Cabelo",
+            attributes: { duracao: "60min" },
+            source: "ai",
+            isActive: true,
+            sortOrder: 0,
+          },
+        }),
+        { status: 201 },
+      ),
+    );
+    // GET refetch
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("publicar-draft-0")).toBeInTheDocument(),
+    );
+
+    fireEvent.click(screen.getByTestId("publicar-draft-0"));
+
+    await waitFor(() => {
+      const postCall = mockFetch.mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo" &&
+          c[1]?.method === "POST",
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(postCall![1].body as string);
+      expect(body.title).toBe("Corte Feminino");
+      expect(body.priceBrl).toBe(80);
+      expect(body.attributes).toEqual({ duracao: "60min" });
+      expect(body.isActive).toBe(true);
+    });
+  });
+
+  it("editar o preço de um draft sem preço antes de publicar persiste o valor corrigido", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify(INGEST_RESULT), { status: 200 }),
+    );
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ product: { id: "p-2", isActive: true } }), {
+        status: 201,
+      }),
+    );
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("importar-catalogo")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("importar-catalogo"));
+    fireEvent.change(screen.getByTestId("import-campo-texto"), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByTestId("import-analisar"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("draft-campo-preco-1")).toBeInTheDocument(),
+    );
+
+    // MEI corrige o preço do draft sem preço (Manicure, índice 1)
+    fireEvent.change(screen.getByTestId("draft-campo-preco-1"), {
+      target: { value: "35" },
+    });
+    fireEvent.click(screen.getByTestId("publicar-draft-1"));
+
+    await waitFor(() => {
+      const postCall = mockFetch.mock.calls.find(
+        (c) =>
+          typeof c[0] === "string" &&
+          c[0] === "/api/catalogo" &&
+          c[1]?.method === "POST",
+      );
+      expect(postCall).toBeDefined();
+      const body = JSON.parse(postCall![1].body as string);
+      expect(body.title).toBe("Manicure");
+      expect(body.priceBrl).toBe(35);
+      expect(body.isActive).toBe(true);
+    });
+  });
 });

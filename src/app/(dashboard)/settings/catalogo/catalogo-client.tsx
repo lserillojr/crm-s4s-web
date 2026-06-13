@@ -53,6 +53,61 @@ async function deactivateProduct(id: string): Promise<void> {
   if (!r.ok) throw new Error(`deactivate ${r.status}`);
 }
 
+// ─── Ingestão (IA estrutura → MEI revisa) ─────────────────────────────────────
+
+/** ProductDraft cru vindo do estruturador (crm-s4s-ai) — snake_case. */
+type AiProductDraft = {
+  key?: string;
+  title: string;
+  description?: string | null;
+  price_brl?: number | null;
+  category?: string | null;
+  attributes?: Record<string, unknown>;
+};
+
+type IngestResponse = { products: AiProductDraft[]; warnings: string[] };
+
+async function ingestText(text: string): Promise<IngestResponse> {
+  const r = await fetch("/api/catalogo/ingest", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!r.ok) throw new Error(`ingest ${r.status}`);
+  return r.json();
+}
+
+async function ingestFile(file: File): Promise<IngestResponse> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch("/api/catalogo/ingest", { method: "POST", body: fd });
+  if (!r.ok) throw new Error(`ingest ${r.status}`);
+  return r.json();
+}
+
+/** Estado editável de um draft em revisão (campos como string p/ os inputs). */
+type DraftState = {
+  title: string;
+  description: string;
+  priceBrl: string;
+  category: string;
+  attributesJson: string;
+  attributesError: string | null;
+};
+
+function aiDraftToState(d: AiProductDraft): DraftState {
+  const attrs = d.attributes ?? {};
+  return {
+    title: d.title ?? "",
+    description: d.description ?? "",
+    priceBrl: d.price_brl != null ? String(d.price_brl) : "",
+    category: d.category ?? "",
+    attributesJson:
+      Object.keys(attrs).length > 0 ? JSON.stringify(attrs, null, 2) : "",
+    attributesError: null,
+  };
+}
+
 // ─── Inline edit state ───────────────────────────────────────────────────────
 
 type EditState = {
@@ -142,6 +197,16 @@ export function CatalogoClient() {
   const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
   const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
 
+  // ── Ingestão + revisão ───────────────────────────────────────────────────
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
+  // drafts === null → ainda não analisou; [] → analisou e nada veio
+  const [drafts, setDrafts] = useState<DraftState[] | null>(null);
+  // índice do draft sendo publicado (p/ desabilitar o botão)
+  const [pendingDraftIdx, setPendingDraftIdx] = useState<number | null>(null);
+
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof createProduct>[0]) =>
       createProduct(data),
@@ -184,6 +249,36 @@ export function CatalogoClient() {
     },
     onSettled: () => {
       setPendingPublishId(null);
+    },
+  });
+
+  const ingestMutation = useMutation({
+    mutationFn: () =>
+      importFile ? ingestFile(importFile) : ingestText(importText),
+    onSuccess: (res) => {
+      setWarnings(res.warnings ?? []);
+      setDrafts((res.products ?? []).map(aiDraftToState));
+    },
+  });
+
+  // Publica UM draft revisado: vira um produto ativo via POST /api/catalogo.
+  const publishDraftMutation = useMutation({
+    mutationFn: (data: Parameters<typeof createProduct>[0]) =>
+      // POST /api/catalogo aceita isActive — o draft entra já publicado.
+      fetch("/api/catalogo", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...data, isActive: true }),
+      }).then((r) => {
+        if (r.status === 409) throw new Error("key_exists");
+        if (!r.ok) throw new Error(`publish ${r.status}`);
+        return r.json();
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["catalogo"] });
+    },
+    onSettled: () => {
+      setPendingDraftIdx(null);
     },
   });
 
@@ -266,6 +361,63 @@ export function CatalogoClient() {
     });
   }
 
+  function closeImport() {
+    setImportOpen(false);
+    setImportText("");
+    setImportFile(null);
+    setWarnings([]);
+    setDrafts(null);
+    ingestMutation.reset();
+    publishDraftMutation.reset();
+  }
+
+  function analyzeImport() {
+    if (!importFile && importText.trim() === "") return;
+    ingestMutation.mutate();
+  }
+
+  function setDraftField<K extends keyof DraftState>(
+    idx: number,
+    key: K,
+    value: DraftState[K],
+  ) {
+    setDrafts((ds) =>
+      ds
+        ? ds.map((d, i) => (i === idx ? { ...d, [key]: value } : d))
+        : ds,
+    );
+  }
+
+  function publishDraft(idx: number) {
+    if (!drafts) return;
+    const d = drafts[idx]!;
+    if (!d.title.trim()) return;
+
+    const attrResult = parseAttributesJson(d.attributesJson);
+    if (!attrResult.ok) {
+      setDraftField(idx, "attributesError", "JSON inválido. Corrija antes de publicar.");
+      return;
+    }
+
+    setPendingDraftIdx(idx);
+    publishDraftMutation.mutate(
+      {
+        key: slugify(d.title),
+        title: d.title.trim(),
+        description: d.description.trim() || null,
+        priceBrl: parsePriceBrl(d.priceBrl),
+        category: d.category.trim() || null,
+        attributes: attrResult.value,
+      },
+      {
+        onSuccess: () => {
+          // Remove o draft publicado da lista de revisão.
+          setDrafts((ds) => (ds ? ds.filter((_, i) => i !== idx) : ds));
+        },
+      },
+    );
+  }
+
   // ── Main render ──────────────────────────────────────────────────────────
 
   return (
@@ -280,15 +432,268 @@ export function CatalogoClient() {
         atendimento.
       </div>
 
-      {/* Botão para abrir formulário de adição manual */}
-      {!addOpen && (
-        <Button
-          data-testid="adicionar-produto"
-          onClick={() => setAddOpen(true)}
-          className="bg-s4s-blue hover:bg-s4s-blue/90"
-        >
-          Adicionar produto
-        </Button>
+      {/* Ações: adicionar manual ou importar (IA estrutura → você revisa) */}
+      {!addOpen && !importOpen && (
+        <div className="flex gap-2">
+          <Button
+            data-testid="adicionar-produto"
+            onClick={() => setAddOpen(true)}
+            className="bg-s4s-blue hover:bg-s4s-blue/90"
+          >
+            Adicionar produto
+          </Button>
+          <Button
+            data-testid="importar-catalogo"
+            variant="outline"
+            onClick={() => setImportOpen(true)}
+          >
+            Importar catálogo
+          </Button>
+        </div>
+      )}
+
+      {/* Painel de importação: cola texto OU envia arquivo → IA estrutura */}
+      {importOpen && (
+        <Card data-testid="form-importar">
+          <CardHeader>
+            <CardTitle className="text-base">Importar catálogo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Cole sua lista de produtos ou envie um arquivo (CSV, Excel ou PDF).
+              A IA organiza tudo e <strong>você confere</strong> antes de
+              publicar.
+            </p>
+
+            <div className="space-y-1">
+              <Label htmlFor="import-texto">Colar texto</Label>
+              <Textarea
+                id="import-texto"
+                data-testid="import-campo-texto"
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                disabled={ingestMutation.isPending}
+                placeholder={"Corte feminino - R$ 80\nManicure\nHidratação - R$ 120"}
+                rows={5}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="import-arquivo">Ou enviar arquivo</Label>
+              <Input
+                id="import-arquivo"
+                data-testid="import-campo-arquivo"
+                type="file"
+                accept=".csv,.xlsx,.xls,.pdf,text/csv,application/pdf"
+                onChange={(e) =>
+                  setImportFile(e.target.files?.[0] ?? null)
+                }
+                disabled={ingestMutation.isPending}
+              />
+            </div>
+
+            {ingestMutation.isError && (
+              <div
+                role="alert"
+                data-testid="import-error-banner"
+                className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
+              >
+                Não consegui ler esse catálogo. Tente outro arquivo ou cole o
+                texto.
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                data-testid="import-analisar"
+                size="sm"
+                onClick={analyzeImport}
+                disabled={
+                  ingestMutation.isPending ||
+                  (!importFile && importText.trim() === "")
+                }
+                className="bg-s4s-blue hover:bg-s4s-blue/90"
+              >
+                {ingestMutation.isPending ? "Analisando..." : "Analisar"}
+              </Button>
+              <Button
+                data-testid="import-cancelar"
+                size="sm"
+                variant="outline"
+                onClick={closeImport}
+                disabled={ingestMutation.isPending}
+              >
+                Fechar
+              </Button>
+            </div>
+
+            {/* Avisos da IA — o MEI deve conferir antes de publicar */}
+            {warnings.length > 0 && (
+              <div
+                role="alert"
+                data-testid="import-warnings"
+                className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+              >
+                <p className="font-medium">Confira estes pontos:</p>
+                <ul className="ml-4 list-disc">
+                  {warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Revisão dos drafts */}
+            {drafts !== null && drafts.length === 0 && (
+              <p
+                data-testid="import-sem-itens"
+                className="text-sm text-muted-foreground"
+              >
+                Nada para revisar. Cole o texto ou envie outro arquivo.
+              </p>
+            )}
+
+            {drafts !== null && drafts.length > 0 && (
+              <div className="space-y-3" data-testid="import-revisao">
+                <p className="text-sm font-medium">
+                  Revise antes de publicar ({drafts.length}):
+                </p>
+                {drafts.map((d, idx) => {
+                  const semPreco = parsePriceBrl(d.priceBrl) === null;
+                  const isPublishing = pendingDraftIdx === idx;
+                  return (
+                    <Card
+                      key={idx}
+                      data-testid={`draft-${idx}`}
+                      className={
+                        semPreco ? "border-amber-400 bg-amber-50/40" : ""
+                      }
+                    >
+                      <CardContent className="space-y-2 pt-4">
+                        <p className="text-sm font-medium">
+                          {d.title || "Sem nome"}
+                        </p>
+                        {semPreco && (
+                          <p
+                            data-testid={`draft-sem-preco-${idx}`}
+                            className="text-xs font-medium text-amber-700"
+                          >
+                            Sem preço — confira antes de publicar.
+                          </p>
+                        )}
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`draft-titulo-${idx}`}>Nome</Label>
+                          <Input
+                            id={`draft-titulo-${idx}`}
+                            data-testid={`draft-campo-titulo-${idx}`}
+                            value={d.title}
+                            onChange={(e) =>
+                              setDraftField(idx, "title", e.target.value)
+                            }
+                            disabled={isPublishing}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`draft-descricao-${idx}`}>
+                            Descrição
+                          </Label>
+                          <Textarea
+                            id={`draft-descricao-${idx}`}
+                            data-testid={`draft-campo-descricao-${idx}`}
+                            value={d.description}
+                            onChange={(e) =>
+                              setDraftField(idx, "description", e.target.value)
+                            }
+                            disabled={isPublishing}
+                            rows={2}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`draft-preco-${idx}`}>
+                            Preço (R$) — deixe vazio para &ldquo;sob
+                            consulta&rdquo;
+                          </Label>
+                          <Input
+                            id={`draft-preco-${idx}`}
+                            data-testid={`draft-campo-preco-${idx}`}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={d.priceBrl}
+                            onChange={(e) =>
+                              setDraftField(idx, "priceBrl", e.target.value)
+                            }
+                            disabled={isPublishing}
+                            placeholder="Sob consulta"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`draft-categoria-${idx}`}>
+                            Categoria
+                          </Label>
+                          <Input
+                            id={`draft-categoria-${idx}`}
+                            data-testid={`draft-campo-categoria-${idx}`}
+                            value={d.category}
+                            onChange={(e) =>
+                              setDraftField(idx, "category", e.target.value)
+                            }
+                            disabled={isPublishing}
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor={`draft-attributes-${idx}`}>
+                            Atributos (JSON) — deixe vazio se não houver
+                          </Label>
+                          <Textarea
+                            id={`draft-attributes-${idx}`}
+                            data-testid={`draft-campo-attributes-${idx}`}
+                            value={d.attributesJson}
+                            onChange={(e) => {
+                              setDraftField(
+                                idx,
+                                "attributesJson",
+                                e.target.value,
+                              );
+                              setDraftField(idx, "attributesError", null);
+                            }}
+                            disabled={isPublishing}
+                            rows={3}
+                            className="font-mono text-xs"
+                          />
+                          {d.attributesError && (
+                            <p
+                              role="alert"
+                              data-testid={`draft-attributes-error-${idx}`}
+                              className="text-xs text-red-600"
+                            >
+                              {d.attributesError}
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          data-testid={`publicar-draft-${idx}`}
+                          size="sm"
+                          onClick={() => publishDraft(idx)}
+                          disabled={isPublishing || !d.title.trim()}
+                          className="bg-s4s-blue hover:bg-s4s-blue/90"
+                        >
+                          {isPublishing ? "Publicando..." : "Publicar"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Formulário de adição manual */}
