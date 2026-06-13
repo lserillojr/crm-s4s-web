@@ -48,24 +48,84 @@ describe("PUT /api/kb", () => {
     const { PUT } = await loadRoute();
     expect((await PUT(req({ editable: { identidade: "   " } }) as any)).status).toBe(400);
   });
-  it("aplica só editáveis, ignora travada, e salva", async () => {
+
+  it("aplica só editáveis, ignora travada, e salva (compose após funil-config)", async () => {
     authMock.mockResolvedValue(session);
     (global.fetch as any)
+      // 1) kb get
       .mockResolvedValueOnce(new Response(JSON.stringify({
         sections: [
           { key: "identidade", title: "Identidade e tom", editable: true, content: "antigo" },
-          { key: "regras_odoo", title: "Regras Odoo (movimentação do pipeline)", editable: false, content: "TRAVADO" },
+          { key: "regras_odoo", title: "Regras do funil", editable: false, content: "TRAVADO" },
         ],
         sectionsPrevious: null, vertical: "outro", legacyContent: "", updatedAt: null,
       }), { status: 200 }))
+      // 2) funil-config get (sem placeholders no conteúdo → map irrelevante)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ stages: [] }), { status: 200 }))
+      // 3) kb save
       .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, updatedAt: "2026-05-31T00:00:00Z" }), { status: 200 }));
     const { PUT } = await loadRoute();
     const res = await PUT(req({ editable: { identidade: "novo texto do mei", regras_odoo: "HACK" } }) as any);
     expect(res.status).toBe(200);
-    const saveCall = (global.fetch as any).mock.calls[1];
+    const saveCall = (global.fetch as any).mock.calls[2];
+    expect(String(saveCall[0])).toContain("/kb/api/v1/save");
     const sent = JSON.parse(saveCall[1].body);
     const odoo = sent.sections.find((s: any) => s.key === "regras_odoo");
     expect(odoo.content).toBe("TRAVADO");
     expect(sent.content).toContain("novo texto do mei");
+  });
+
+  it("resolve {{etapa:role}} no content salvo, mantendo as sections cruas", async () => {
+    authMock.mockResolvedValue(session);
+    (global.fetch as any)
+      // 1) kb get — Seção 8 travada com placeholder cru
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        sections: [
+          { key: "identidade", title: "Identidade e tom", editable: true, content: "id" },
+          { key: "regras_odoo", title: "Regras do funil", editable: false, content: "mova para {{etapa:orcamento}}" },
+        ],
+        sectionsPrevious: null, vertical: "outro", legacyContent: "", updatedAt: null,
+      }), { status: 200 }))
+      // 2) funil-config get — orcamento renomeado para "Proposta"
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        stages: [{ s4s_role: "orcamento", name: "Proposta", sequence: 30 }],
+      }), { status: 200 }))
+      // 3) kb save
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, updatedAt: "2026-06-13T00:00:00Z" }), { status: 200 }));
+    const { PUT } = await loadRoute();
+    const res = await PUT(req({ editable: { identidade: "novo" } }) as any);
+    expect(res.status).toBe(200);
+    const sent = JSON.parse((global.fetch as any).mock.calls[2][1].body);
+    // content (o que a IA lê) resolvido:
+    expect(sent.content).toContain("mova para Proposta");
+    expect(sent.content).not.toContain("{{etapa:orcamento}}");
+    // sections (fonte editável) permanecem cruas, para re-resolver fresco no futuro:
+    expect(sent.sections.find((s: any) => s.key === "regras_odoo").content).toBe(
+      "mova para {{etapa:orcamento}}",
+    );
+  });
+
+  it("funil-config indisponível → salva mesmo assim (200), placeholder vira vazio", async () => {
+    authMock.mockResolvedValue(session);
+    (global.fetch as any)
+      // 1) kb get — Seção 8 com placeholder
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        sections: [
+          { key: "identidade", title: "Identidade e tom", editable: true, content: "id" },
+          { key: "regras_odoo", title: "Regras do funil", editable: false, content: "vai para {{etapa:orcamento}}!" },
+        ],
+        sectionsPrevious: null, vertical: "outro", legacyContent: "", updatedAt: null,
+      }), { status: 200 }))
+      // 2) funil-config get FALHA (502) → fetchRoleToName degrada para {}
+      .mockResolvedValueOnce(new Response("boom", { status: 502 }))
+      // 3) kb save
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, updatedAt: "2026-06-13T00:00:00Z" }), { status: 200 }));
+    const { PUT } = await loadRoute();
+    const res = await PUT(req({ editable: { identidade: "novo" } }) as any);
+    expect(res.status).toBe(200);
+    const sent = JSON.parse((global.fetch as any).mock.calls[2][1].body);
+    // map vazio → papel desconhecido vira string vazia no content (degradação graciosa):
+    expect(sent.content).toContain("vai para !");
+    expect(sent.content).not.toContain("{{etapa:orcamento}}");
   });
 });

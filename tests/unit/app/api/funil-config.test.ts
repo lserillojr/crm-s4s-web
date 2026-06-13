@@ -109,11 +109,15 @@ describe("PUT /api/funil-config", () => {
 
   it("200: repassa tenant_id + renames ao WF", async () => {
     authMock.mockResolvedValue(VALID_SESSION);
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), {
-        status: 200,
-      }),
-    );
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // 0) funil-config save (rename)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), {
+          status: 200,
+        }),
+      )
+      // recompose: kb get sem KB materializado → para aqui (sections null)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ sections: null, vertical: "outro", legacyContent: "" }), { status: 200 }));
     const { PUT } = await loadRoute();
     const res = await PUT(putReq({ renames: [{ role: "orcamento", name: "Proposta" }] }) as never);
     const body = await res.json();
@@ -151,5 +155,49 @@ describe("PUT /api/funil-config", () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(false);
     expect(body.results[0].error).toContain("Já existe");
+    // WF falhou (ok:false) → recompose NÃO dispara (nenhuma chamada a /kb/*)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
+  });
+
+  it("rename ok → dispara recompose do KB (get + save) sem alterar a resposta do rename", async () => {
+    authMock.mockResolvedValue(VALID_SESSION);
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // 0) funil-config save (rename)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), { status: 200 }))
+      // 1) recompose: kb get (com Seção 8 + placeholder)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        sections: [{ key: "regras_odoo", title: "Regras do funil", editable: false, content: "p/ {{etapa:orcamento}}" }],
+        vertical: "outro", legacyContent: "",
+      }), { status: 200 }))
+      // 2) recompose: funil-config get (label novo)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ stages: [{ s4s_role: "orcamento", name: "Proposta", sequence: 30 }] }), { status: 200 }))
+      // 3) recompose: kb save
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    const { PUT } = await loadRoute();
+    const res = await PUT(putReq({ renames: [{ role: "orcamento", name: "Proposta" }] }) as never);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls;
+    expect(String(calls[0]![0])).toContain("/funil-config/api/v1/save");
+    expect(String(calls[1]![0])).toContain("/kb/api/v1/get");
+    expect(String(calls[2]![0])).toContain("/funil-config/api/v1/get");
+    expect(String(calls[3]![0])).toContain("/kb/api/v1/save");
+    const savedKb = JSON.parse((calls[3]![1] as { body: string }).body);
+    expect(savedKb.content).toContain("p/ Proposta");
+  });
+
+  it("recompose do KB falhando NÃO derruba o rename (200 + body do rename)", async () => {
+    authMock.mockResolvedValue(VALID_SESSION);
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // 0) rename ok
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, results: [{ role: "orcamento", ok: true }] }), { status: 200 }))
+      // 1) recompose: kb get falha
+      .mockResolvedValueOnce(new Response("boom", { status: 502 }));
+    const { PUT } = await loadRoute();
+    const res = await PUT(putReq({ renames: [{ role: "orcamento", name: "Proposta" }] }) as never);
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
   });
 });

@@ -3,7 +3,9 @@ import { z } from "zod";
 import { requireApiTenant } from "@/lib/api/require-tenant";
 import { callAiService } from "@/lib/api/ai-service";
 import { composeKb, mergeEditable, initSections, kbByteLength } from "@/lib/kb/compose";
-import type { KbSection } from "@/lib/kb/types";
+import type { KbSection, KbGetRaw } from "@/lib/kb/types";
+import { resolveStagePlaceholders } from "@/lib/kb/placeholders";
+import { fetchRoleToName } from "@/lib/funil/role-to-name";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,19 +13,11 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const MAX_BYTES = 50 * 1024;
 
-type GetRaw = {
-  sections: KbSection[] | null;
-  sectionsPrevious: KbSection[] | null;
-  vertical: string | null;
-  legacyContent: string | null;
-  updatedAt: string | null;
-};
-
 async function fetchRaw(tenantId: string) {
-  return callAiService<GetRaw>({ path: "/kb/api/v1/get", body: { tenant_id: tenantId } });
+  return callAiService<KbGetRaw>({ path: "/kb/api/v1/get", body: { tenant_id: tenantId } });
 }
 
-function resolveSections(raw: GetRaw): KbSection[] {
+function resolveSections(raw: KbGetRaw): KbSection[] {
   return raw.sections ?? initSections(raw.vertical ?? "outro", raw.legacyContent ?? "");
 }
 
@@ -58,7 +52,11 @@ export async function PUT(req: NextRequest) {
 
   const current = resolveSections(r.data);
   const merged = mergeEditable(current, parsed.data.editable);
-  const content = composeKb(merged);
+  // Resolve {{etapa:role}} contra os labels atuais do tenant (2B). Falha → map {} (papéis
+  // desconhecidos viram string vazia no content). As `sections` salvas ficam cruas; só o
+  // `content` (o que a IA lê) é resolvido.
+  const roleToName = await fetchRoleToName(ctx.tenantId);
+  const content = resolveStagePlaceholders(composeKb(merged), roleToName);
 
   if (kbByteLength(content) > MAX_BYTES) {
     return Response.json({ error: "too_large", maxBytes: MAX_BYTES }, { status: 400, headers: NO_STORE });
