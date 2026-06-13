@@ -160,6 +160,30 @@ describe("POST /api/catalogo", () => {
     const res = await POST(postReq(validDraft) as never);
     expect(res.status).toBe(409);
   });
+
+  it("201 isActive=true insere com is_active=true nos params SQL (publicar rascunho)", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    const activeRow = { ...PRODUCT_ROW, is_active: true };
+    poolQuery.mockResolvedValue({ rows: [activeRow], rowCount: 1 });
+    const res = await POST(postReq({ ...validDraft, isActive: true }) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    // $8 should be true (is_active param)
+    expect(params).toContain(true);
+    expect(params).not.toContain(false);
+  });
+
+  it("201 sem isActive insere com is_active=false por defeito (rascunho manual)", async () => {
+    vi.mocked(auth).mockResolvedValue(SESSION as never);
+    const draftRow = { ...PRODUCT_ROW, is_active: false };
+    poolQuery.mockResolvedValue({ rows: [draftRow], rowCount: 1 });
+    const res = await POST(postReq(validDraft) as never);
+    expect(res.status).toBe(201);
+    const [, params] = poolQuery.mock.calls[0]!;
+    // $8 should be false (is_active param)
+    expect(params).toContain(false);
+    expect(params).not.toContain(true);
+  });
 });
 
 // ─────────────────────────────────────────────
