@@ -15,6 +15,9 @@ export interface RawConversation {
   status?: string;
   meta?: { sender?: { name?: string } };
   custom_attributes?: RawCustomAttributes;
+  messages?: RawMessage[];                  // a lista do Chatwoot inclui a(s) última(s) mensagem(ns)
+  last_non_activity_message?: RawMessage | null;
+  last_activity_at?: number;                // unix seconds
 }
 export interface RawAttachment { id?: number; file_type?: string; data_url?: string }
 export interface RawMessage {
@@ -27,6 +30,8 @@ export interface RawMessage {
   attachments?: RawAttachment[];
 }
 
+export type SeloConversa = "precisa" | "ia" | "assumida" | "resolvida";
+
 export type Autor = "cliente" | "ia" | "humano";
 export type TipoMsg = "texto" | "imagem" | "audio" | "documento" | "local";
 export type HandoffStatus = "aberto" | "posse" | "resolvido";
@@ -35,6 +40,7 @@ export interface MensagemDTO { id: number; autor: Autor; tipo: TipoMsg; texto: s
 export interface ConversaListItemDTO {
   id: number; contato: string; motivo: string; resumoPreview: string;
   status: HandoffStatus; handoffEm: string | null;
+  selo: SeloConversa; ultimaMensagem: string; em: string | null;
 }
 export interface ConversaDTO {
   id: number; status: HandoffStatus; aiState: string; aiSummary: string;
@@ -88,6 +94,42 @@ export function isHandoff(conv: RawConversation): boolean {
   return ca?.ai_state === "escalated" || ca?.handoff_status === "aberto";
 }
 
+export function deriveSelo(conv: RawConversation): SeloConversa {
+  if (conv.status === "resolved") return "resolvida";
+  if (conv.custom_attributes?.ai_state === "escalated") return "assumida";
+  if (conv.custom_attributes?.handoff_status === "aberto") return "precisa";
+  return "ia";
+}
+
+const ROTULO_MIDIA: Record<string, string> = {
+  image: "Foto", audio: "Áudio", file: "Documento", location: "Localização",
+};
+
+function rotuloMidia(m: RawMessage): string {
+  const ft = m.attachments?.[0]?.file_type;
+  return (ft && ROTULO_MIDIA[ft]) || (m.attachments?.length ? "Documento" : "");
+}
+
+function ultimaMsg(conv: RawConversation): RawMessage | undefined {
+  if (conv.last_non_activity_message) return conv.last_non_activity_message;
+  const msgs = conv.messages ?? [];
+  return msgs[msgs.length - 1];
+}
+
+export function ultimaMensagemPreview(conv: RawConversation): string {
+  const m = ultimaMsg(conv);
+  if (m) {
+    if (m.content && m.content.trim()) return preview(m.content);
+    const rot = rotuloMidia(m);
+    if (rot) return rot;
+  }
+  return preview(conv.custom_attributes?.ai_summary);
+}
+
+function emISOFromUnix(s?: number): string | null {
+  return typeof s === "number" ? new Date(s * 1000).toISOString() : null;
+}
+
 const PREVIEW_MAX_CHARS = 100;
 
 function preview(s: string | undefined, n = PREVIEW_MAX_CHARS): string {
@@ -97,6 +139,7 @@ function preview(s: string | undefined, n = PREVIEW_MAX_CHARS): string {
 
 export function mapListItem(conv: RawConversation): ConversaListItemDTO {
   const ca = conv.custom_attributes ?? {};
+  const em = emISOFromUnix(conv.last_activity_at) ?? emISO(ultimaMsg(conv)?.created_at);
   return {
     id: conv.id,
     contato: conv.meta?.sender?.name ?? "Cliente",
@@ -104,6 +147,9 @@ export function mapListItem(conv: RawConversation): ConversaListItemDTO {
     resumoPreview: preview(ca.ai_summary),
     status: deriveStatus(conv),
     handoffEm: ca.handoff_em ?? null,
+    selo: deriveSelo(conv),
+    ultimaMensagem: ultimaMensagemPreview(conv),
+    em,
   };
 }
 
