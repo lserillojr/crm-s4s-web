@@ -61,6 +61,23 @@ describe("CatalogoClient", () => {
     expect(screen.getByText("Manicure")).toBeInTheDocument();
   });
 
+  // I6: produto com priceBrl null exibe "Sob consulta"
+  it("produto com priceBrl null exibe 'Sob consulta'", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(
+        JSON.stringify({ products: [PRODUCT_RASCUNHO] }),
+        { status: 200 },
+      ),
+    );
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByText("Manicure")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Sob consulta")).toBeInTheDocument();
+  });
+
   it("distingue item ativo (lido pela IA) de rascunho visivelmente", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
       new Response(
@@ -344,6 +361,84 @@ describe("CatalogoClient", () => {
       // Produto criado como rascunho — isActive NÃO deve ser true
       expect(body.isActive).not.toBe(true);
     });
+  });
+
+  // I7: após POST com sucesso, formulário fecha e botão "Adicionar produto" volta
+  it("após POST com sucesso, formulário fecha e botão 'Adicionar produto' reaparece", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    const newProduct: CatalogProduct = {
+      id: "prod-new",
+      key: "novo-produto",
+      title: "Novo Produto",
+      description: null,
+      priceBrl: null,
+      category: null,
+      attributes: {},
+      source: "manual",
+      isActive: false,
+      sortOrder: 0,
+    };
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ product: newProduct }), { status: 201 }),
+    );
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ products: [newProduct] }), { status: 200 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("adicionar-produto"));
+    expect(screen.getByTestId("form-adicionar")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByTestId("add-campo-titulo"), {
+      target: { value: "Novo Produto" },
+    });
+    fireEvent.click(screen.getByTestId("add-salvar"));
+
+    // Formulário deve fechar e botão deve voltar
+    await waitFor(() =>
+      expect(screen.queryByTestId("form-adicionar")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument();
+  });
+
+  // C2: POST retorna 409 → exibe mensagem específica de nome duplicado
+  it("POST retornando 409 exibe mensagem de nome duplicado", async () => {
+    const mockFetch = vi.fn();
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ products: [] }), { status: 200 }),
+    );
+    // POST retorna 409
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "key_already_exists" }), { status: 409 }),
+    );
+    (global.fetch as unknown) = mockFetch;
+
+    wrap(<CatalogoClient />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("adicionar-produto")).toBeInTheDocument(),
+    );
+    fireEvent.click(screen.getByTestId("adicionar-produto"));
+
+    fireEvent.change(screen.getByTestId("add-campo-titulo"), {
+      target: { value: "Corte Feminino" },
+    });
+    fireEvent.click(screen.getByTestId("add-salvar"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("add-error-banner")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("add-error-banner").textContent).toMatch(
+      /Já existe um produto com esse nome/,
+    );
   });
 
   // ── GAP 2: edição de attributes ─────────────────────────────────────────────

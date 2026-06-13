@@ -70,6 +70,10 @@ export interface StatusResult {
  * troca tudo que não é alfanumérico por `-`, colapsa e apara. Fallback
  * de formato fixo `mei-<6hex>` quando o resultado fica vazio (ex: só símbolos),
  * pra nunca enviar slug inválido que o WF11 NODE 3 rejeitaria (400).
+ *
+ * NOTA: mantém cópia local (não importa de src/lib/utils/slugify.ts) pois o
+ * fallback é `mei-<random>` — semântica de tenant, diferente do fallback "produto"
+ * do catálogo. Keep in sync: normalize("NFD") ANTES de toLowerCase().
  */
 export function slugify(input: string): string {
   const slug = (input ?? "")

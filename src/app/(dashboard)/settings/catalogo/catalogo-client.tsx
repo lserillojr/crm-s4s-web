@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { CatalogProduct } from "@/lib/catalogo/types";
+import { slugify } from "@/lib/utils/slugify";
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ async function createProduct(data: {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ...data, isActive: false }),
   });
+  if (r.status === 409) throw new Error("key_exists");
   if (!r.ok) throw new Error(`create ${r.status}`);
   return r.json();
 }
@@ -49,19 +51,6 @@ async function updateProduct(
 async function deactivateProduct(id: string): Promise<void> {
   const r = await fetch(`/api/catalogo/${id}`, { method: "DELETE" });
   if (!r.ok) throw new Error(`deactivate ${r.status}`);
-}
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Turns a display title into a URL-safe key, e.g. "Corte Feminino" → "corte-feminino" */
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 120) || "produto";
 }
 
 // ─── Inline edit state ───────────────────────────────────────────────────────
@@ -131,7 +120,8 @@ function parsePriceBrl(raw: string): number | null {
   const trimmed = raw.trim();
   if (trimmed === "") return null;
   const n = Number(trimmed);
-  return Number.isNaN(n) ? null : n;
+  if (Number.isNaN(n) || n < 0) return null;
+  return n;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -147,6 +137,10 @@ export function CatalogoClient() {
   // addOpen: controla se o formulário de adição manual está aberto
   const [addOpen, setAddOpen] = useState(false);
   const [addState, setAddState] = useState<AddState>(EMPTY_ADD_STATE);
+
+  // per-row pending tracking (FIX I4)
+  const [pendingPublishId, setPendingPublishId] = useState<string | null>(null);
+  const [pendingDeactivateId, setPendingDeactivateId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (data: Parameters<typeof createProduct>[0]) =>
@@ -178,12 +172,18 @@ export function CatalogoClient() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["catalogo"] });
     },
+    onSettled: () => {
+      setPendingDeactivateId(null);
+    },
   });
 
   const publishMutation = useMutation({
     mutationFn: (id: string) => updateProduct(id, { isActive: true }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["catalogo"] });
+    },
+    onSettled: () => {
+      setPendingPublishId(null);
     },
   });
 
@@ -207,11 +207,13 @@ export function CatalogoClient() {
   const products = q.data!.products;
 
   function startEdit(p: CatalogProduct) {
+    updateMutation.reset(); // FIX C1: clear stale error from previous product
     setEditingId(p.id);
     setEditState(toEditState(p));
   }
 
   function cancelEdit() {
+    updateMutation.reset(); // FIX C1: clear stale error on cancel
     setEditingId(null);
     setEditState(null);
   }
@@ -314,7 +316,7 @@ export function CatalogoClient() {
 
             <div className="space-y-1">
               <Label htmlFor="add-descricao">Descrição</Label>
-              <Input
+              <Textarea
                 id="add-descricao"
                 data-testid="add-campo-descricao"
                 value={addState.description}
@@ -322,6 +324,7 @@ export function CatalogoClient() {
                   setAddState((s) => ({ ...s, description: e.target.value }))
                 }
                 disabled={createMutation.isPending}
+                rows={3}
               />
             </div>
 
@@ -391,9 +394,13 @@ export function CatalogoClient() {
             {createMutation.isError && (
               <div
                 role="alert"
+                data-testid="add-error-banner"
                 className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900"
               >
-                Não consegui salvar. Tente de novo em instantes.
+                {createMutation.error instanceof Error &&
+                createMutation.error.message === "key_exists"
+                  ? "Já existe um produto com esse nome. Altere o nome e tente de novo."
+                  : "Não consegui salvar. Tente de novo em instantes."}
               </div>
             )}
 
@@ -479,7 +486,7 @@ export function CatalogoClient() {
 
                   <div className="space-y-1">
                     <Label htmlFor={`descricao-${p.id}`}>Descrição</Label>
-                    <Input
+                    <Textarea
                       id={`descricao-${p.id}`}
                       data-testid="campo-descricao"
                       value={editState.description}
@@ -489,6 +496,7 @@ export function CatalogoClient() {
                         )
                       }
                       disabled={updateMutation.isPending}
+                      rows={3}
                     />
                   </div>
 
@@ -616,8 +624,11 @@ export function CatalogoClient() {
                       <Button
                         data-testid={`publicar-${p.id}`}
                         size="sm"
-                        onClick={() => publishMutation.mutate(p.id)}
-                        disabled={publishMutation.isPending}
+                        onClick={() => {
+                          setPendingPublishId(p.id);
+                          publishMutation.mutate(p.id);
+                        }}
+                        disabled={pendingPublishId === p.id}
                         className="bg-s4s-blue hover:bg-s4s-blue/90"
                       >
                         Publicar
@@ -630,8 +641,11 @@ export function CatalogoClient() {
                         data-testid={`desativar-${p.id}`}
                         size="sm"
                         variant="outline"
-                        onClick={() => deactivateMutation.mutate(p.id)}
-                        disabled={deactivateMutation.isPending}
+                        onClick={() => {
+                          setPendingDeactivateId(p.id);
+                          deactivateMutation.mutate(p.id);
+                        }}
+                        disabled={pendingDeactivateId === p.id}
                       >
                         Desativar
                       </Button>
