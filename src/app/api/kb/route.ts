@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireApiTenant } from "@/lib/api/require-tenant";
 import { callAiService } from "@/lib/api/ai-service";
 import { composeKb, mergeEditable, initSections, kbByteLength } from "@/lib/kb/compose";
-import type { KbSection } from "@/lib/kb/types";
+import type { KbSection, KbGetRaw } from "@/lib/kb/types";
 import { resolveStagePlaceholders } from "@/lib/kb/placeholders";
 import { fetchRoleToName } from "@/lib/funil/role-to-name";
 
@@ -13,19 +13,11 @@ export const dynamic = "force-dynamic";
 const NO_STORE = { "Cache-Control": "no-store" };
 const MAX_BYTES = 50 * 1024;
 
-type GetRaw = {
-  sections: KbSection[] | null;
-  sectionsPrevious: KbSection[] | null;
-  vertical: string | null;
-  legacyContent: string | null;
-  updatedAt: string | null;
-};
-
 async function fetchRaw(tenantId: string) {
-  return callAiService<GetRaw>({ path: "/kb/api/v1/get", body: { tenant_id: tenantId } });
+  return callAiService<KbGetRaw>({ path: "/kb/api/v1/get", body: { tenant_id: tenantId } });
 }
 
-function resolveSections(raw: GetRaw): KbSection[] {
+function resolveSections(raw: KbGetRaw): KbSection[] {
   return raw.sections ?? initSections(raw.vertical ?? "outro", raw.legacyContent ?? "");
 }
 
