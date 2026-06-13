@@ -1,6 +1,6 @@
 import { requireAppUser } from "@/lib/api/require-app-user";
 import { callAiService } from "@/lib/api/ai-service";
-import { relatoriosSummarySchema } from "@/lib/relatorios/contract";
+import { relatoriosSummarySchema, type RelatoriosSummary } from "@/lib/relatorios/contract";
 import { toAppHomeSummary } from "@/lib/app-home/contract";
 
 export const runtime = "nodejs";
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
   const ctx = await requireAppUser(req);
   if ("response" in ctx) return ctx.response;
 
-  const result = await callAiService({
+  const result = await callAiService<RelatoriosSummary>({
     path: "/relatorios/api/v1/summary",
     body: { tenant_id: ctx.tenantId, days: 1 },
   });
