@@ -104,4 +104,28 @@ describe("PUT /api/kb", () => {
       "mova para {{etapa:orcamento}}",
     );
   });
+
+  it("funil-config indisponível → salva mesmo assim (200), placeholder vira vazio", async () => {
+    authMock.mockResolvedValue(session);
+    (global.fetch as any)
+      // 1) kb get — Seção 8 com placeholder
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        sections: [
+          { key: "identidade", title: "Identidade e tom", editable: true, content: "id" },
+          { key: "regras_odoo", title: "Regras do funil", editable: false, content: "vai para {{etapa:orcamento}}!" },
+        ],
+        sectionsPrevious: null, vertical: "outro", legacyContent: "", updatedAt: null,
+      }), { status: 200 }))
+      // 2) funil-config get FALHA (502) → fetchRoleToName degrada para {}
+      .mockResolvedValueOnce(new Response("boom", { status: 502 }))
+      // 3) kb save
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, updatedAt: "2026-06-13T00:00:00Z" }), { status: 200 }));
+    const { PUT } = await loadRoute();
+    const res = await PUT(req({ editable: { identidade: "novo" } }) as any);
+    expect(res.status).toBe(200);
+    const sent = JSON.parse((global.fetch as any).mock.calls[2][1].body);
+    // map vazio → papel desconhecido vira string vazia no content (degradação graciosa):
+    expect(sent.content).toContain("vai para !");
+    expect(sent.content).not.toContain("{{etapa:orcamento}}");
+  });
 });

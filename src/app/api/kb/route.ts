@@ -60,8 +60,9 @@ export async function PUT(req: NextRequest) {
 
   const current = resolveSections(r.data);
   const merged = mergeEditable(current, parsed.data.editable);
-  // Resolve {{etapa:role}} contra os labels atuais do tenant (2B). Falha → map {} (placeholders
-  // viram vazio). As `sections` salvas ficam cruas; só o `content` (o que a IA lê) é resolvido.
+  // Resolve {{etapa:role}} contra os labels atuais do tenant (2B). Falha → map {} (papéis
+  // desconhecidos viram string vazia no content). As `sections` salvas ficam cruas; só o
+  // `content` (o que a IA lê) é resolvido.
   const roleToName = await fetchRoleToName(ctx.tenantId);
   const content = resolveStagePlaceholders(composeKb(merged), roleToName);
 
