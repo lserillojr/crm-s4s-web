@@ -24,6 +24,10 @@ export async function GET(_req: NextRequest) {
   });
 
   if (!result.ok) {
+    console.warn("[funil-config] get degraded", {
+      tenantId: ctx.tenantId,
+      reason: result.reason,
+    });
     return Response.json(
       { stages: [], loaded: false },
       { status: 200, headers: NO_STORE },
