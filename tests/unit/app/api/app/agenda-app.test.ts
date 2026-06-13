@@ -9,6 +9,7 @@ import { GET as listGET } from "@/app/api/app/agenda/list/route";
 import { POST as criarPOST } from "@/app/api/app/agenda/appointments/route";
 import { POST as reschedulePOST } from "@/app/api/app/agenda/appointments/[id]/reschedule/route";
 import { POST as cancelPOST } from "@/app/api/app/agenda/appointments/[id]/cancel/route";
+import { GET as contatosGET } from "@/app/api/app/agenda/contacts/search/route";
 
 const reqUser = vi.mocked(requireAppUser);
 const callSvc = vi.mocked(callAgendaService);
@@ -146,6 +147,38 @@ describe("POST /api/app/agenda/appointments/[id]/cancel", () => {
   it("502 sanitizado se o upstream falhar", async () => {
     callSvc.mockResolvedValue(upstream({ error: "x" }, 500));
     const res = await cancelPOST(new Request("http://x", { method: "POST" }), { params: { id: "ap2" } });
+    expect(res.status).toBe(502);
+    expect((await res.json()).detail).toBeUndefined();
+  });
+});
+
+describe("GET /api/app/agenda/contacts/search", () => {
+  it("term < 2 chars devolve [] sem chamar o upstream", async () => {
+    const res = await contatosGET(new Request("http://x/api/app/agenda/contacts/search?term=a"));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual([]);
+    expect(callSvc).not.toHaveBeenCalled();
+  });
+
+  it("mapeia results do FastAPI para DTO limpo (name→nome, phone→telefone)", async () => {
+    callSvc.mockResolvedValue(upstream({ results: [
+      { id: 10, name: "Ana Souza", phone: "+5511999", email: "a@x.com" },
+      { id: 11, name: "Bia", phone: null },
+    ] }));
+    const res = await contatosGET(new Request("http://x/api/app/agenda/contacts/search?term=an"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual([
+      { id: 10, nome: "Ana Souza", telefone: "+5511999" },
+      { id: 11, nome: "Bia", telefone: null },
+    ]);
+    expect(callSvc).toHaveBeenCalledWith("/agenda/contacts/search?tenant=t1&term=an");
+    expect(JSON.stringify(body)).not.toMatch(/email|odoo/i);
+  });
+
+  it("502 sanitizado se o upstream falhar", async () => {
+    callSvc.mockResolvedValue(upstream({ error: "x" }, 500));
+    const res = await contatosGET(new Request("http://x/api/app/agenda/contacts/search?term=an"));
     expect(res.status).toBe(502);
     expect((await res.json()).detail).toBeUndefined();
   });
