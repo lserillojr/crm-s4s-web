@@ -55,10 +55,14 @@ export function classifyAutor(m: RawMessage): Autor | null {
 }
 
 export function classifyTipo(m: RawMessage): TipoMsg {
-  if (m.content && m.content.trim()) return "texto";
   const ft = m.attachments?.[0]?.file_type;
+  // Imagem com legenda: a FOTO manda. O Chatwoot manda content (legenda) + anexo
+  // juntos; se deixássemos o content virar "texto", o app perderia a imagem
+  // (ex.: foto de produto enviada pela IA, ou foto do cliente com legenda).
+  if (ft === "image") return "imagem";
+  // Demais tipos: content textual (ex.: transcrição de áudio) tem prioridade.
+  if (m.content && m.content.trim()) return "texto";
   switch (ft) {
-    case "image": return "imagem";
     case "audio": return "audio";
     case "location": return "local";
     case "file": return "documento";

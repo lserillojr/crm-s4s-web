@@ -34,6 +34,15 @@ describe("classifyTipo", () => {
   it("attachment de imagem = imagem", () => {
     expect(classifyTipo({ id: 1, message_type: 0, content: "", attachments: [{ file_type: "image" }] })).toBe("imagem");
   });
+  it("imagem COM legenda = imagem (não perde a foto)", () => {
+    // foto de produto enviada pela IA: content=título + anexo de imagem juntos
+    const m = { id: 1, message_type: 1, content: "Anel Solitário Prata 925", attachments: [{ id: 99, file_type: "image" }] };
+    expect(classifyTipo(m)).toBe("imagem");
+    expect(mapMensagem(m)?.attachmentId).toBe(99);
+  });
+  it("áudio com transcrição segue como texto (não regride)", () => {
+    expect(classifyTipo({ id: 1, message_type: 0, content: "oi tudo bem", attachments: [{ file_type: "audio" }] })).toBe("texto");
+  });
   it("attachment de audio = audio", () => {
     expect(classifyTipo({ id: 1, message_type: 0, attachments: [{ file_type: "audio" }] })).toBe("audio");
   });
