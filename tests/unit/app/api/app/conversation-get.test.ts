@@ -36,6 +36,14 @@ describe("GET /api/app/conversations/[id]", () => {
     expect((await res.json()).error).toBe("upstream");
   });
 
+  it("502 não vaza detail", async () => {
+    requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
+    chatwootForTenant.mockRejectedValue(new Error("segredo interno"));
+    const res = await GET(new Request("http://x"), params);
+    expect(res.status).toBe(502);
+    expect((await res.json()).detail).toBeUndefined();
+  });
+
   it("monta a conversa (resumo + timeline classificada)", async () => {
     requireAppUser.mockResolvedValue({ userId: "u1", tenantId: "t1" });
     chatwootForTenant.mockResolvedValue({
