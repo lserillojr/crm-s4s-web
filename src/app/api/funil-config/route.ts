@@ -97,9 +97,14 @@ export async function PUT(req: NextRequest) {
     );
   }
 
-  // Best-effort: re-sincroniza o KB (Seção 8 por papel) com os novos labels. O rename já
-  // gravou no Odoo; se o recompose falhar, loga e segue — não derruba o rename. (Story 2C)
-  await recomposeAndSaveKb(ctx.tenantId);
+  // Best-effort: re-sincroniza o KB (Seção 8 por papel) com os novos labels — SÓ quando o WF
+  // confirma que o rename foi aplicado (`ok:true`). Em falha parcial (ex.: colisão de nome) o WF
+  // devolve 200 + `ok:false` e nada foi persistido → não recompõe. O rename já gravou no Odoo; se
+  // o recompose falhar, loga e segue — não derruba o rename. (Story 2C)
+  const wfOk = (result.data as { ok?: boolean } | null)?.ok === true;
+  if (wfOk) {
+    await recomposeAndSaveKb(ctx.tenantId);
+  }
 
   return Response.json(result.data, { status: 200, headers: NO_STORE });
 }

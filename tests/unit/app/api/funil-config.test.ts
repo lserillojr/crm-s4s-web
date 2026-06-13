@@ -155,6 +155,8 @@ describe("PUT /api/funil-config", () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(false);
     expect(body.results[0].error).toContain("Já existe");
+    // WF falhou (ok:false) → recompose NÃO dispara (nenhuma chamada a /kb/*)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
   it("rename ok → dispara recompose do KB (get + save) sem alterar a resposta do rename", async () => {
