@@ -4,6 +4,8 @@ import { requireApiTenant } from "@/lib/api/require-tenant";
 import { callAiService } from "@/lib/api/ai-service";
 import { composeKb, mergeEditable, initSections, kbByteLength } from "@/lib/kb/compose";
 import type { KbSection } from "@/lib/kb/types";
+import { resolveStagePlaceholders } from "@/lib/kb/placeholders";
+import { fetchRoleToName } from "@/lib/funil/role-to-name";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,7 +60,10 @@ export async function PUT(req: NextRequest) {
 
   const current = resolveSections(r.data);
   const merged = mergeEditable(current, parsed.data.editable);
-  const content = composeKb(merged);
+  // Resolve {{etapa:role}} contra os labels atuais do tenant (2B). Falha → map {} (placeholders
+  // viram vazio). As `sections` salvas ficam cruas; só o `content` (o que a IA lê) é resolvido.
+  const roleToName = await fetchRoleToName(ctx.tenantId);
+  const content = resolveStagePlaceholders(composeKb(merged), roleToName);
 
   if (kbByteLength(content) > MAX_BYTES) {
     return Response.json({ error: "too_large", maxBytes: MAX_BYTES }, { status: 400, headers: NO_STORE });
